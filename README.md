@@ -1,84 +1,84 @@
 # ConnectDrive
 
-Un projet Python pour gérer des connexions et des opérations de stockage.
+A Python project for managing network connections and storage operations.
 
 ## Installation
 
-1. Cloner le dépôt :
+1. Clone the repository:
 ```bash
 git clone https://github.com/bermotard/connectdrive.git
 cd connectdrive
 ```
 
-2. Créer un environnement virtuel :
+2. Create a virtual environment:
 ```bash
 python -m venv venv
-source venv/bin/activate  # Sur Linux/Mac
-# ou
-# .\venv\Scripts\activate  # Sur Windows
+source venv/bin/activate  # On Linux/Mac
+# or
+# .\venv\Scripts\activate  # On Windows
 ```
 
-3. Installer les dépendances :
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-## Utilisation
+## Usage
 
-### Monteur de lecteur réseau
+### Network Drive Mounter
 
-Le programme `network_mounter.py` fournit une interface graphique pour monter des partages réseau et les ajouter au fichier fstab.
+The `network_mounter.py` program provides a graphical interface to mount network shares and add them to the fstab file.
 
-#### Prérequis
+#### Prerequisites
 
-- Python 3.6 ou supérieur
-- Paquets système requis (pour Ubuntu/Debian) :
+- Python 3.6 or higher
+- Required system packages (for Ubuntu/Debian):
   ```bash
   sudo apt-get install cifs-utils nfs-common
   ```
 
-#### Installation des dépendances Python
+#### Install Python Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-#### Lancement du programme
+#### Launch the Program
 
 ```bash
 python network_mounter.py
 ```
 
-#### Fonctionnalités
+#### Features
 
-1. **Monter un partage réseau** : Permet de monter un partage réseau immédiatement
-2. **Ajouter à fstab** : Ajoute une entrée dans /etc/fstab pour un montage automatique au démarrage
-3. **Tout faire** : Monte le partage et l'ajoute à fstab en une seule opération
+1. **Mount Network Share**: Mounts a network share immediately
+2. **Add to fstab**: Adds an entry to /etc/fstab for automatic mounting at boot
+3. **Do Everything**: Mounts the share and adds it to fstab in one operation
 
-#### Paramètres
+#### Parameters
 
-- **Serveur** : L'adresse IP ou le nom d'hôte du serveur
-- **Partage** : Le nom du partage réseau
-- **Point de montage** : Le répertoire local où le partage sera monté
-- **Utilisateur** : Le nom d'utilisateur pour l'authentification
-- **Mot de passe** : Le mot de passe pour l'authentification
-- **Domaine** : Le domaine (optionnel) pour l'authentification
-- **Type de système de fichiers** : CIFS (Samba) ou NFS
-- **Options** : Options de montage supplémentaires (séparées par des virgules)
+- **Server**: IP address or hostname of the server
+- **Share**: Name of the network share
+- **Mount Point**: Local directory where the share will be mounted
+- **Username**: Username for authentication
+- **Password**: Password for authentication
+- **Domain**: (Optional) Domain for authentication
+- **Filesystem Type**: CIFS (Samba) or NFS
+- **Options**: Additional mount options (comma-separated)
 
-#### Exemple d'utilisation
+#### Usage Example
 
-1. Entrez les détails de connexion du serveur
-2. Cliquez sur "Monter" pour monter le partage immédiatement
-3. Si le montage réussit, cliquez sur "Ajouter à fstab" pour le rendre permanent
-4. Ou utilisez "Tout faire" pour effectuer les deux opérations en une fois
+1. Enter the server connection details
+2. Click "Mount" to mount the share immediately
+3. If successful, click "Add to fstab" to make it permanent
+4. Or use "Do Everything" to perform both operations at once
 
-## Structure du projet
+## Project Structure
 
 ```
 connectdrive/
-├── src/           # Code source du projet
-├── tests/         # Tests unitaires
+├── src/           # Source code
+├── tests/         # Unit tests
 ├── docs/          # Documentation
 ├── .gitignore
 ├── README.md

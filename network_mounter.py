@@ -8,7 +8,7 @@ import getpass
 class NetworkMounter:
     def __init__(self, root):
         self.root = root
-        self.root.title("Monteur de lecteur réseau")
+        self.root.title("Network Drive Mounter")
         self.root.geometry("600x600")
         self.root.minsize(550, 550)  # Taille minimale pour s'assurer que tout est visible
         
@@ -31,33 +31,33 @@ class NetworkMounter:
         main_frame.pack(fill=tk.BOTH, expand=True)
         
         # Formulaire
-        form_frame = ttk.LabelFrame(main_frame, text="Paramètres de connexion", padding=10)
+        form_frame = ttk.LabelFrame(main_frame, text="Connection Settings", padding=10)
         form_frame.pack(fill=tk.X, pady=5)
         
         # Champs du formulaire
-        ttk.Label(form_frame, text="Serveur:").grid(row=0, column=0, sticky=tk.W, pady=2)
+        ttk.Label(form_frame, text="Server:").grid(row=0, column=0, sticky=tk.W, pady=2)
         ttk.Entry(form_frame, textvariable=self.server).grid(row=0, column=1, sticky=tk.EW, padx=5, pady=2)
         
-        ttk.Label(form_frame, text="Partage:").grid(row=1, column=0, sticky=tk.W, pady=2)
+        ttk.Label(form_frame, text="Share:").grid(row=1, column=0, sticky=tk.W, pady=2)
         ttk.Entry(form_frame, textvariable=self.share).grid(row=1, column=1, sticky=tk.EW, padx=5, pady=2)
         
-        ttk.Label(form_frame, text="Point de montage:").grid(row=2, column=0, sticky=tk.W, pady=2)
+        ttk.Label(form_frame, text="Mount Point:").grid(row=2, column=0, sticky=tk.W, pady=2)
         ttk.Entry(form_frame, textvariable=self.mount_point).grid(row=2, column=1, sticky=tk.EW, padx=5, pady=2)
         
-        ttk.Label(form_frame, text="Utilisateur:").grid(row=3, column=0, sticky=tk.W, pady=2)
+        ttk.Label(form_frame, text="Username:").grid(row=3, column=0, sticky=tk.W, pady=2)
         ttk.Entry(form_frame, textvariable=self.username).grid(row=3, column=1, sticky=tk.EW, padx=5, pady=2)
         
-        ttk.Label(form_frame, text="Mot de passe:").grid(row=4, column=0, sticky=tk.W, pady=2)
+        ttk.Label(form_frame, text="Password:").grid(row=4, column=0, sticky=tk.W, pady=2)
         ttk.Entry(form_frame, textvariable=self.password, show="*").grid(row=4, column=1, sticky=tk.EW, padx=5, pady=2)
         
-        ttk.Label(form_frame, text="Domaine (optionnel):").grid(row=5, column=0, sticky=tk.W, pady=2)
+        ttk.Label(form_frame, text="Domain (optional):").grid(row=5, column=0, sticky=tk.W, pady=2)
         ttk.Entry(form_frame, textvariable=self.domain).grid(row=5, column=1, sticky=tk.EW, padx=5, pady=2)
         
         # Options de montage
-        options_frame = ttk.LabelFrame(main_frame, text="Options de montage", padding=10)
+        options_frame = ttk.LabelFrame(main_frame, text="Mount Options", padding=10)
         options_frame.pack(fill=tk.X, pady=10)
         
-        ttk.Label(options_frame, text="Type de système de fichiers:").grid(row=0, column=0, sticky=tk.W, pady=2)
+        ttk.Label(options_frame, text="Filesystem Type:").grid(row=0, column=0, sticky=tk.W, pady=2)
         ttk.Combobox(options_frame, textvariable=self.filesystem, values=["cifs", "nfs"], state="readonly").grid(row=0, column=1, sticky=tk.EW, padx=5, pady=2)
         
         ttk.Label(options_frame, text="Options:").grid(row=1, column=0, sticky=tk.W, pady=2)
@@ -67,9 +67,9 @@ class NetworkMounter:
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X, pady=10)
         
-        ttk.Button(button_frame, text="Monter", command=self.mount_share).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Ajouter à fstab", command=self.add_to_fstab).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Tout faire", command=self.do_all).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Mount", command=self.mount_share).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Add to fstab", command=self.add_to_fstab).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Do Everything", command=self.do_all).pack(side=tk.LEFT, padx=5)
         
         # Zone de journal avec ascenseur
         log_frame = ttk.Frame(main_frame)
@@ -88,18 +88,18 @@ class NetworkMounter:
         options_frame.columnconfigure(1, weight=1)
     
     def log(self, message):
-        """Ajoute un message au journal"""
+        """Add a message to the log"""
         self.log_text.insert(tk.END, message + "\n")
         self.log_text.see(tk.END)
         self.root.update()
     
     def get_sudo_password(self):
-        """Affiche une boîte de dialogue pour saisir le mot de passe sudo"""
+        """Display a dialog to enter sudo password"""
         if os.geteuid() == 0:  # Déjà root
             return True
             
         password_window = tk.Toplevel(self.root)
-        password_window.title("Authentification requise")
+        password_window.title("Authentication Required")
         password_window.geometry("400x150")
         password_window.resizable(False, False)
         
@@ -112,11 +112,11 @@ class NetworkMounter:
         y = (screen_height // 2) - (window_height // 2)
         password_window.geometry(f'{window_width}x{window_height}+{x}+{y}')
         
-        ttk.Label(password_window, text="Authentification requise pour monter le partage", 
+        ttk.Label(password_window, text="Authentication required to mount the share", 
                  font=('Arial', 10, 'bold')).pack(pady=10)
         
         password_var = tk.StringVar()
-        ttk.Label(password_window, text="Mot de passe sudo:").pack(pady=5)
+        ttk.Label(password_window, text="Sudo password:").pack(pady=5)
         password_entry = ttk.Entry(password_window, textvariable=password_var, show="*")
         password_entry.pack(pady=5, padx=20, fill=tk.X)
         password_entry.focus()
@@ -135,7 +135,7 @@ class NetworkMounter:
         button_frame.pack(pady=10)
         
         ttk.Button(button_frame, text="OK", command=on_ok).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Annuler", command=on_cancel).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=on_cancel).pack(side=tk.LEFT, padx=5)
         
         # Fermeture de la fenêtre avec la touche Entrée
         password_window.bind('<Return>', lambda e: on_ok())
@@ -149,7 +149,7 @@ class NetworkMounter:
         return result['password'] if result['ok'] else None
 
     def mount_share(self):
-        """Monte le partage réseau"""
+        """Mount the network share"""
         server = self.server.get().strip()
         share = self.share.get().strip()
         mount_point = self.mount_point.get().strip()
@@ -164,20 +164,20 @@ class NetworkMounter:
         if os.geteuid() != 0:
             sudo_password = self.get_sudo_password()
             if sudo_password is None:
-                self.log("Opération annulée par l'utilisateur")
+                self.log("Operation cancelled by user")
                 return False
         
         if not all([server, share, mount_point]):
-            messagebox.showerror("Erreur", "Veuillez remplir tous les champs obligatoires")
+            messagebox.showerror("Error", "Please fill in all required fields")
             return
         
         # Créer le point de montage s'il n'existe pas
         if not os.path.exists(mount_point):
             try:
                 os.makedirs(mount_point, exist_ok=True)
-                self.log(f"Point de montage créé: {mount_point}")
+                self.log(f"Mount point created: {mount_point}")
             except Exception as e:
-                messagebox.showerror("Erreur", f"Impossible de créer le point de montage: {e}")
+                messagebox.showerror("Error", f"Failed to create mount point: {e}")
                 return
         
         # Construire la commande mount
@@ -206,7 +206,7 @@ class NetworkMounter:
         
         # Exécuter la commande
         try:
-            self.log(f"Exécution de la commande: {' '.join(mount_cmd)}")
+            self.log(f"Executing command: {' '.join(mount_cmd)}")
             # Préparer l'entrée pour sudo si nécessaire
             process_input = None
             if os.geteuid() != 0 and sudo_password:
@@ -220,23 +220,23 @@ class NetworkMounter:
             )
             
             if result.returncode == 0:
-                self.log("Montage réussi!")
-                messagebox.showinfo("Succès", "Le partage a été monté avec succès!")
+                self.log("Share mounted successfully")
+                messagebox.showinfo("Success", "The share has been mounted successfully!")
                 return True
             else:
-                error_msg = f"Erreur lors du montage: {result.stderr}"
+                error_msg = f"Error mounting share: {result.stderr}"
                 self.log(error_msg)
-                messagebox.showerror("Erreur", error_msg)
+                messagebox.showerror("Error", error_msg)
                 return False
                 
         except Exception as e:
-            error_msg = f"Erreur lors de l'exécution de la commande: {e}"
+            error_msg = f"Error executing command: {e}"
             self.log(error_msg)
-            messagebox.showerror("Erreur", error_msg)
+            messagebox.showerror("Error", error_msg)
             return False
     
     def add_to_fstab(self):
-        """Ajoute une entrée dans /etc/fstab"""
+        """Add an entry to the fstab file"""
         server = self.server.get().strip()
         share = self.share.get().strip()
         mount_point = self.mount_point.get().strip()
@@ -247,7 +247,7 @@ class NetworkMounter:
         options = self.options.get().strip()
         
         if not all([server, share, mount_point]):
-            messagebox.showerror("Erreur", "Veuillez remplir tous les champs obligatoires")
+            messagebox.showerror("Error", "Please fill in all required fields")
             return False
         
         # Construire la ligne fstab
@@ -278,16 +278,16 @@ class NetworkMounter:
             
             # Vérifier si l'entrée existe déjà
             if f"{mount_point}" in fstab_content:
-                messagebox.showwarning("Attention", f"Une entrée pour {mount_point} existe déjà dans fstab.")
+                messagebox.showwarning("Warning", f"An entry for {mount_point} already exists in fstab.")
                 return False
             
             # Ajouter la nouvelle entrée
             with open("/etc/fstab", "a") as f:
                 f.write(fstab_line)
             
-            self.log(f"Entrée ajoutée à /etc/fstab:")
+            self.log(f"Entry added to /etc/fstab:")
             self.log(fstab_line.strip())
-            messagebox.showinfo("Succès", "L'entrée a été ajoutée à /etc/fstab")
+            messagebox.showinfo("Success", "The entry has been added to /etc/fstab")
             return True
             
         except PermissionError:
@@ -297,24 +297,24 @@ class NetworkMounter:
                 result = subprocess.run(cmd, capture_output=True, text=True)
                 
                 if result.returncode == 0:
-                    self.log(f"Entrée ajoutée à /etc/fstab:")
+                    self.log(f"Entry added to /etc/fstab:")
                     self.log(fstab_line.strip())
-                    messagebox.showinfo("Succès", "L'entrée a été ajoutée à /etc/fstab")
+                    messagebox.showinfo("Success", "The entry has been added to /etc/fstab")
                     return True
                 else:
-                    error_msg = f"Erreur lors de l'ajout à fstab: {result.stderr}"
+                    error_msg = f"Error adding to fstab: {result.stderr}"
                     self.log(error_msg)
-                    messagebox.showerror("Erreur", error_msg)
+                    messagebox.showerror("Error", error_msg)
                     return False
                     
             except Exception as e:
-                error_msg = f"Erreur lors de l'ajout à fstab: {e}"
+                error_msg = f"Error adding to fstab: {e}"
                 self.log(error_msg)
-                messagebox.showerror("Erreur", error_msg)
+                messagebox.showerror("Error", error_msg)
                 return False
     
     def do_all(self):
-        """Exécute toutes les opérations"""
+        """Perform all operations: mount and add to fstab"""
         if self.mount_share():
             self.add_to_fstab()
 
