@@ -214,14 +214,29 @@ class NetworkMounter:
             messagebox.showerror("Error", "Please fill in all required fields")
             return
         
-        # Créer le point de montage s'il n'existe pas
+        # Vérifier si le point de montage existe
         if not os.path.exists(mount_point):
+            # Demander confirmation pour créer le répertoire
+            confirm = messagebox.askyesno(
+                "Create Directory",
+                f"The directory {mount_point} does not exist.\n\nDo you want to create it?",
+                icon='question',
+                default=messagebox.YES
+            )
+            
+            if not confirm:
+                self.log(f"Operation cancelled: mount point {mount_point} does not exist")
+                return False
+                
             try:
                 os.makedirs(mount_point, exist_ok=True)
                 self.log(f"Mount point created: {mount_point}")
+                messagebox.showinfo("Success", f"Successfully created directory: {mount_point}")
             except Exception as e:
-                messagebox.showerror("Error", f"Failed to create mount point: {e}")
-                return
+                error_msg = f"Failed to create mount point: {e}"
+                self.log(error_msg)
+                messagebox.showerror("Error", error_msg)
+                return False
         
         # Build the mount command
         source = f"//{server}/{share}" if filesystem == "cifs" else f"{server}:{share}"
@@ -287,20 +302,25 @@ class NetworkMounter:
             try:
                 if os.geteuid() != 0 and sudo_password:
                     # Use Popen to handle the password input
-                    process = subprocess.Popen(
-                        mount_cmd,
-                        stdin=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True
-                    )
-                    stdout, stderr = process.communicate(input=f"{sudo_password}\n")
-                    result = subprocess.CompletedProcess(
-                        mount_cmd, 
-                        process.returncode,
-                        stdout=stdout,
-                        stderr=stderr
-                    )
+                    try:
+                        process = subprocess.Popen(
+                            ['sudo', '-S'] + mount_cmd[1:],  # Remove the first 'sudo' and add '-S' to read from stdin
+                            stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True
+                        )
+                        stdout, stderr = process.communicate(input=f"{sudo_password}\n")
+                        result = subprocess.CompletedProcess(
+                            mount_cmd, 
+                            process.returncode,
+                            stdout=stdout,
+                            stderr=stderr
+                        )
+                    except Exception as e:
+                        self.log(f"Error executing command with sudo: {str(e)}")
+                        messagebox.showerror("Error", f"Failed to execute command with sudo: {str(e)}")
+                        return False
                 else:
                     # Run normally if no password needed
                     result = subprocess.run(
