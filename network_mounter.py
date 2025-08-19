@@ -34,6 +34,7 @@ class NetworkMounter:
         
         # File menu
         file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu.add_command(label="List Mounts", command=self.list_mounts)
         file_menu.add_command(label="Console", command=self.show_console)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
@@ -129,6 +130,124 @@ class NetworkMounter:
         # Configurer la grille pour le redimensionnement
         form_frame.columnconfigure(1, weight=1)
         options_frame.columnconfigure(1, weight=1)
+    
+    def populate_fields_from_mount(self, mount_info, window):
+        """Populate form fields from selected mount info"""
+        try:
+            # Parse mount info (example: //server/share on /mnt/point type cifs (...)
+            parts = mount_info.split()
+            if len(parts) >= 3:
+                source = parts[0]
+                mount_point = parts[2]
+                
+                # Extract server and share from source (//server/share)
+                if source.startswith('//'):
+                    server_share = source[2:].split('/')
+                    if len(server_share) >= 2:
+                        self.server.set(server_share[0])
+                        self.share.set('/'.join(server_share[1:]))
+                        self.mount_point.set(mount_point)
+                        
+                        # Try to find username in options
+                        options = ' '.join(parts[3:]) if len(parts) > 3 else ''
+                        if 'username=' in options:
+                            self.username.set(options.split('username=')[1].split(',')[0].strip('\"\''))
+                        if 'domain=' in options:
+                            self.domain.set(options.split('domain=')[1].split(',')[0].strip('\"\''))
+                        
+                        # Set filesystem type
+                        if len(parts) >= 5 and parts[4] == 'type':
+                            self.filesystem.set(parts[5])
+                        
+                        window.destroy()
+                        return
+            
+            messagebox.showinfo("Info", "Could not parse all mount information. Some fields may be empty.")
+            window.destroy()
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to parse mount info: {str(e)}")
+    
+    def list_mounts(self):
+        """List all active mount points with selection capability"""
+        try:
+            # Get mounted filesystems using 'mount' command
+            result = subprocess.run(
+                ['mount'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            # Create a new window to display mounts
+            window = tk.Toplevel(self.root)
+            window.title("Active Mount Points")
+            window.geometry("1000x500")
+            
+            # Create a frame for the listbox and scrollbar
+            list_frame = ttk.Frame(window)
+            list_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+            
+            # Add scrollbar
+            scrollbar = ttk.Scrollbar(list_frame)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            
+            # Create a listbox to display mounts
+            listbox = tk.Listbox(
+                list_frame,
+                yscrollcommand=scrollbar.set,
+                font=('Courier', 10),
+                selectmode=tk.SINGLE,
+                height=20
+            )
+            listbox.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
+            scrollbar.config(command=listbox.yview)
+            
+            # Parse and add mount points to listbox
+            mounts = result.stdout.splitlines()
+            if not mounts:
+                listbox.insert(tk.END, "No active mount points found.")
+                listbox.config(state=tk.DISABLED)
+            else:
+                for mount in mounts:
+                    listbox.insert(tk.END, mount)
+            
+            # Function to handle selection
+            def on_select(event):
+                selection = listbox.get(listbox.curselection())
+                self.populate_fields_from_mount(selection, window)
+            
+            # Bind double-click event
+            listbox.bind('<Double-1>', on_select)
+            
+            # Add buttons frame
+            btn_frame = ttk.Frame(window)
+            btn_frame.pack(fill=tk.X, padx=5, pady=5)
+            
+            # Add Modify button
+            ttk.Button(
+                btn_frame,
+                text="Modify",
+                command=lambda: self.populate_fields_from_mount(
+                    listbox.get(listbox.curselection()),
+                    window
+                ) if listbox.curselection() else None
+            ).pack(side=tk.LEFT, padx=5)
+            
+            # Add close button
+            ttk.Button(
+                btn_frame,
+                text="Close",
+                command=window.destroy
+            ).pack(side=tk.RIGHT, padx=5)
+            
+            # Set focus to the window
+            window.focus_set()
+            
+        except subprocess.CalledProcessError as e:
+            messagebox.showerror("Error", f"Failed to list mount points: {e.stderr}")
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {str(e)}")
     
     def log(self, message):
         """Add a message to the log"""
