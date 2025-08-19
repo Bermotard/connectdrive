@@ -22,11 +22,54 @@ class NetworkMounter:
         self.filesystem = tk.StringVar(value="cifs")
         self.options = tk.StringVar(value="rw,user")
         
-        # Interface utilisateur
+        # Create menu
+        self.create_menu()
+        
+        # Create user interface
         self.create_widgets()
     
+    def create_menu(self):
+        """Create the menu bar"""
+        menubar = tk.Menu(self.root)
+        
+        # File menu
+        file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu.add_command(label="Console", command=self.show_console)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.root.quit)
+        
+        menubar.add_cascade(label="File", menu=file_menu)
+        self.root.config(menu=menubar)
+    
+    def show_console(self):
+        """Show the console window with application logs"""
+        console_window = tk.Toplevel(self.root)
+        console_window.title("Application Console")
+        console_window.geometry("800x400")
+        
+        # Add scrollbar
+        scrollbar = ttk.Scrollbar(console_window)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Add text widget for logs
+        console_text = tk.Text(console_window, wrap=tk.WORD, yscrollcommand=scrollbar.set)
+        console_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Insert current log content
+        console_text.insert(tk.END, self.log_text.get("1.0", tk.END))
+        console_text.config(state=tk.DISABLED)  # Make it read-only
+        
+        # Configure scrollbar
+        scrollbar.config(command=console_text.yview)
+        
+        # Make the window resizable
+        console_window.resizable(True, True)
+        
+        # Set focus to the console window
+        console_window.focus_set()
+    
     def create_widgets(self):
-        # Cadre principal
+        # Main frame
         main_frame = ttk.Frame(self.root, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
         
@@ -180,58 +223,137 @@ class NetworkMounter:
                 messagebox.showerror("Error", f"Failed to create mount point: {e}")
                 return
         
-        # Construire la commande mount
+        # Build the mount command
         source = f"//{server}/{share}" if filesystem == "cifs" else f"{server}:{share}"
         mount_cmd = ["sudo", "mount", "-t", filesystem]
         
-        # Ajouter les options d'authentification pour CIFS
+        # Handle authentication options for CIFS
         if filesystem == "cifs":
-            creds = []
-            if username:
-                creds.append(f"username={username}")
-            if password:
-                creds.append(f"password={password}")
-            if domain:
-                creds.append(f"domain={domain}")
-            
-            if creds:
-                creds_str = ",".join(creds)
-                mount_cmd.extend(["-o", f"{options},{creds_str}"])
-            elif options:
-                mount_cmd.extend(["-o", options])
+            # Create a credentials file for better security with special characters
+            creds_file = None
+            if username or password or domain:
+                try:
+                    # Create a secure temporary credentials file
+                    import tempfile
+                    creds_fd, creds_file = tempfile.mkstemp(prefix='.smbcredentials_')
+                    with os.fdopen(creds_fd, 'w') as f:
+                        if username:
+                            f.write(f'username={username}\n')
+                        if password:
+                            f.write(f'password={password}\n')
+                        if domain:
+                            f.write(f'domain={domain}\n')
+                    os.chmod(creds_file, 0o600)  # Secure the credentials file
+                    
+                    # Add credentials file to options
+                    creds_options = f"credentials={creds_file}"
+                    if options:
+                        mount_options = f"{options},{creds_options}"
+                    else:
+                        mount_options = creds_options
+                    mount_cmd.extend(["-o", mount_options])
+                except Exception as e:
+                    self.log(f"Warning: Could not create credentials file: {e}")
+                    # Fallback to command line (less secure)
+                    creds = []
+                    if username:
+                        creds.append(f"username={username}")
+                    if password:
+                        # Escape special characters in password
+                        import shlex
+                        creds.append(f"password={shlex.quote(password)}")
+                    if domain:
+                        creds.append(f"domain={domain}")
+                    
+                    if creds:
+                        creds_str = ",".join(creds)
+                        mount_cmd.extend(["-o", f"{options},{creds_str}"] if options else ["-o", creds_str])
+                    elif options:
+                        mount_cmd.extend(["-o", options])
+            else:
+                if options:
+                    mount_cmd.extend(["-o", options])
         elif options:
             mount_cmd.extend(["-o", options])
         
         mount_cmd.extend([source, mount_point])
         
-        # Exécuter la commande
+        # Execute the command
         try:
-            self.log(f"Executing command: {' '.join(mount_cmd)}")
-            # Préparer l'entrée pour sudo si nécessaire
-            process_input = None
-            if os.geteuid() != 0 and sudo_password:
-                process_input = f"{sudo_password}\n"
-                
-            result = subprocess.run(
-                mount_cmd,
-                capture_output=True,
-                text=True,
-                input=process_input
-            )
+            # Don't log the full command as it contains sensitive data
+            self.log(f"Mounting {source} to {mount_point}...")
+            
+            # Execute the mount command
+            try:
+                if os.geteuid() != 0 and sudo_password:
+                    # Use Popen to handle the password input
+                    process = subprocess.Popen(
+                        mount_cmd,
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True
+                    )
+                    stdout, stderr = process.communicate(input=f"{sudo_password}\n")
+                    result = subprocess.CompletedProcess(
+                        mount_cmd, 
+                        process.returncode,
+                        stdout=stdout,
+                        stderr=stderr
+                    )
+                else:
+                    # Run normally if no password needed
+                    result = subprocess.run(
+                        mount_cmd,
+                        capture_output=True,
+                        text=True,
+                        errors='replace'  # Handle any encoding issues in output
+                    )
+            except subprocess.CalledProcessError as e:
+                error_msg = f"Command failed with return code {e.returncode}: {e.stderr}"
+                self.log(f"Command error: {error_msg}")
+                messagebox.showerror("Command Error", error_msg)
+                return False
+            except Exception as e:
+                error_msg = f"Error executing mount command: {str(e)}"
+                self.log(f"Execution error: {error_msg}")
+                messagebox.showerror("Execution Error", error_msg)
+                return False
+            finally:
+                # Clean up credentials file if it was created
+                if 'creds_file' in locals() and creds_file and os.path.exists(creds_file):
+                    try:
+                        os.unlink(creds_file)
+                    except Exception as e:
+                        self.log(f"Warning: Could not remove credentials file: {e}")
             
             if result.returncode == 0:
-                self.log("Share mounted successfully")
-                messagebox.showinfo("Success", "The share has been mounted successfully!")
+                success_msg = f"Successfully mounted {source} to {mount_point}"
+                self.log(success_msg)
+                messagebox.showinfo("Success", success_msg)
                 return True
             else:
-                error_msg = f"Error mounting share: {result.stderr}"
-                self.log(error_msg)
-                messagebox.showerror("Error", error_msg)
+                # Provide more detailed error information
+                error_details = []
+                if result.stderr:
+                    error_details.append(result.stderr.strip())
+                if result.stdout:
+                    error_details.append(f"Output: {result.stdout.strip()}")
+                
+                error_msg = f"Failed to mount {source}:\n" + "\n".join(error_details)
+                self.log(f"Mount error: {error_msg}")
+                messagebox.showerror("Mount Error", error_msg)
                 return False
                 
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Command failed with return code {e.returncode}: {e.stderr}"
+            self.log(f"Command error: {error_msg}")
+            messagebox.showerror("Command Error", error_msg)
+            return False
+            
         except Exception as e:
-            error_msg = f"Error executing command: {e}"
-            self.log(error_msg)
+            error_msg = f"Unexpected error: {str(e)}"
+            self.log(f"Error: {error_msg}")
             messagebox.showerror("Error", error_msg)
             return False
     
@@ -276,37 +398,128 @@ class NetworkMounter:
             with open("/etc/fstab", "r") as f:
                 fstab_content = f.read()
             
-            # Vérifier si l'entrée existe déjà
-            if f"{mount_point}" in fstab_content:
-                messagebox.showwarning("Warning", f"An entry for {mount_point} already exists in fstab.")
-                return False
+            # Check if entry already exists
+            lines = fstab_content.splitlines()
+            entry_exists = False
+            new_lines = []
             
-            # Ajouter la nouvelle entrée
-            with open("/etc/fstab", "a") as f:
-                f.write(fstab_line)
+            for line in lines:
+                # Skip comments and empty lines
+                if line.strip().startswith('#') or not line.strip():
+                    new_lines.append(line)
+                    continue
+                
+                # Check if this is the mount point we're looking for
+                parts = line.split()
+                if len(parts) >= 2 and parts[1] == mount_point:
+                    # Ask user if they want to update the existing entry
+                    if messagebox.askyesno(
+                        "Entry Exists",
+                        f"An entry for {mount_point} already exists in fstab.\n\n"
+                        f"Current: {line}\n"
+                        f"New:     {fstab_line.strip()}\n\n"
+                        "Do you want to update it?"
+                    ):
+                        new_lines.append(fstab_line.strip())
+                        entry_exists = True
+                        self.log(f"Updated fstab entry for {mount_point}")
+                    else:
+                        new_lines.append(line)  # Keep the existing entry
+                        self.log("Keeping existing fstab entry")
+                        return False
+                else:
+                    new_lines.append(line)
             
-            self.log(f"Entry added to /etc/fstab:")
+            # If we didn't find an existing entry, add the new one
+            if not entry_exists:
+                new_lines.append(fstab_line.strip())
+                self.log(f"Added new entry to /etc/fstab:")
+            
+            # Write the updated fstab file
+            with open("/etc/fstab", "w") as f:
+                f.write("\n".join(new_lines) + "\n")
+            
             self.log(fstab_line.strip())
-            messagebox.showinfo("Success", "The entry has been added to /etc/fstab")
+            messagebox.showinfo("Success", "The fstab file has been updated")
             return True
             
         except PermissionError:
-            # Essayer avec sudo
+            # Try with sudo
             try:
-                cmd = ["sudo", "sh", "-c", f"echo '{fstab_line}' >> /etc/fstab"]
-                result = subprocess.run(cmd, capture_output=True, text=True)
+                # Read current fstab with sudo
+                read_cmd = ["sudo", "cat", "/etc/fstab"]
+                result = subprocess.run(read_cmd, capture_output=True, text=True)
                 
-                if result.returncode == 0:
-                    self.log(f"Entry added to /etc/fstab:")
-                    self.log(fstab_line.strip())
-                    messagebox.showinfo("Success", "The entry has been added to /etc/fstab")
-                    return True
-                else:
-                    error_msg = f"Error adding to fstab: {result.stderr}"
+                if result.returncode != 0:
+                    error_msg = f"Error reading fstab: {result.stderr}"
                     self.log(error_msg)
                     messagebox.showerror("Error", error_msg)
                     return False
+                
+                # Process the fstab content
+                lines = result.stdout.splitlines()
+                entry_exists = False
+                new_lines = []
+                
+                for line in lines:
+                    # Skip comments and empty lines
+                    if line.strip().startswith('#') or not line.strip():
+                        new_lines.append(line)
+                        continue
                     
+                    # Check if this is the mount point we're looking for
+                    parts = line.split()
+                    if len(parts) >= 2 and parts[1] == mount_point:
+                        # Ask user if they want to update the existing entry
+                        if messagebox.askyesno(
+                            "Entry Exists",
+                            f"An entry for {mount_point} already exists in fstab.\n\n"
+                            f"Current: {line}\n"
+                            f"New:     {fstab_line.strip()}\n\n"
+                            "Do you want to update it?"
+                        ):
+                            new_lines.append(fstab_line.strip())
+                            entry_exists = True
+                            self.log(f"Updated fstab entry for {mount_point}")
+                        else:
+                            new_lines.append(line)  # Keep the existing entry
+                            self.log("Keeping existing fstab entry")
+                            return False
+                    else:
+                        new_lines.append(line)
+                
+                # If we didn't find an existing entry, add the new one
+                if not entry_exists:
+                    new_lines.append(fstab_line.strip())
+                    self.log(f"Added new entry to /etc/fstab:")
+                
+                # Create a temporary file with the new content
+                import tempfile
+                with tempfile.NamedTemporaryFile(mode='w', delete=False) as temp_f:
+                    temp_f.write("\n".join(new_lines) + "\n")
+                    temp_path = temp_f.name
+                
+                try:
+                    # Replace fstab with the new content using sudo
+                    cmd = ["sudo", "cp", temp_path, "/etc/fstab"]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+                    
+                    if result.returncode == 0:
+                        self.log(fstab_line.strip())
+                        messagebox.showinfo("Success", "The fstab file has been updated")
+                        return True
+                    else:
+                        error_msg = f"Error updating fstab: {result.stderr}"
+                        self.log(error_msg)
+                        messagebox.showerror("Error", error_msg)
+                        return False
+                finally:
+                    # Clean up the temporary file
+                    try:
+                        os.unlink(temp_path)
+                    except Exception as e:
+                        self.log(f"Warning: Could not remove temporary file: {e}")
+                
             except Exception as e:
                 error_msg = f"Error adding to fstab: {e}"
                 self.log(error_msg)
