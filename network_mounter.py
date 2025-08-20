@@ -35,12 +35,44 @@ class NetworkMounter:
         # File menu
         file_menu = tk.Menu(menubar, tearoff=0)
         file_menu.add_command(label="List Mounts", command=self.list_mounts)
+        file_menu.add_command(label="Display fstab", command=self.display_fstab)
         file_menu.add_command(label="Console", command=self.show_console)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
         
         menubar.add_cascade(label="File", menu=file_menu)
         self.root.config(menu=menubar)
+    
+    def display_fstab(self):
+        """Display the content of /etc/fstab in a new window"""
+        try:
+            with open('/etc/fstab', 'r') as f:
+                fstab_content = f.read()
+            
+            fstab_window = tk.Toplevel(self.root)
+            fstab_window.title("fstab Content")
+            fstab_window.geometry("800x600")
+            
+            # Add scrollbar
+            scrollbar = ttk.Scrollbar(fstab_window)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            
+            # Add text widget for fstab content
+            text_widget = tk.Text(fstab_window, wrap=tk.WORD, yscrollcommand=scrollbar.set)
+            text_widget.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+            
+            # Insert fstab content
+            text_widget.insert(tk.END, fstab_content)
+            text_widget.config(state=tk.DISABLED)  # Make it read-only
+            
+            # Configure scrollbar
+            scrollbar.config(command=text_widget.yview)
+            
+            # Make the window resizable
+            fstab_window.resizable(True, True)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to read /etc/fstab: {str(e)}")
     
     def show_console(self):
         """Show the console window with application logs"""
@@ -348,13 +380,28 @@ class NetworkMounter:
                 return False
                 
             try:
-                os.makedirs(mount_point, exist_ok=True)
-                self.log(f"Mount point created: {mount_point}")
-                messagebox.showinfo("Success", f"Successfully created directory: {mount_point}")
+                # Vérifier si le répertoire /mnt existe et est accessible en écriture
+                if mount_point.startswith('/mnt/') and not os.access('/mnt', os.W_OK):
+                    # Essayer de créer le répertoire avec sudo
+                    try:
+                        subprocess.run(['sudo', 'mkdir', '-p', mount_point], check=True)
+                        subprocess.run(['sudo', 'chown', f'{os.getuid()}:{os.getgid()}', mount_point], check=True)
+                        self.log(f"Mount point created with sudo: {mount_point}")
+                        messagebox.showinfo("Success", f"Successfully created directory with sudo: {mount_point}")
+                    except subprocess.CalledProcessError as e:
+                        error_msg = f"Failed to create mount point with sudo: {e}"
+                        self.log(error_msg)
+                        messagebox.showerror("Error", error_msg + "\n\nYou might need to run this application with sudo or create the directory manually with:\nsudo mkdir -p /mnt/Partages\nsudo chown $USER:$USER /mnt/Partages")
+                        return False
+                else:
+                    # Création normale pour les autres répertoires
+                    os.makedirs(mount_point, exist_ok=True)
+                    self.log(f"Mount point created: {mount_point}")
+                    messagebox.showinfo("Success", f"Successfully created directory: {mount_point}")
             except Exception as e:
                 error_msg = f"Failed to create mount point: {e}"
                 self.log(error_msg)
-                messagebox.showerror("Error", error_msg)
+                messagebox.showerror("Error", error_msg + "\n\nYou might need to create the directory manually with:\nsudo mkdir -p /mnt/Partages\nsudo chown $USER:$USER /mnt/Partages")
                 return False
         
         # Build the mount command
