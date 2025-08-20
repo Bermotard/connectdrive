@@ -1,6 +1,6 @@
 # ConnectDrive
 
-A Python project for managing network connections and storage operations.
+A Python-based network drive mounter with a graphical interface for managing network shares on Linux systems.
 
 ## Installation
 
@@ -48,6 +48,66 @@ pip install -r requirements.txt
 ```bash
 python network_mounter.py
 ```
+
+## Building a Standalone Executable
+
+You can create a standalone executable that doesn't require Python to be installed.
+
+### Prerequisites
+
+```bash
+sudo apt-get install python3-venv python3-pip
+```
+
+### Build Steps
+
+1. Clone the repository (if you haven't already):
+   ```bash
+   git clone https://github.com/bermotard/connectdrive.git
+   cd connectdrive
+   ```
+
+2. Make the build script executable and run it:
+   ```bash
+   chmod +x build.sh
+   ./build.sh
+   ```
+
+3. The executable will be created in the `dist` directory.
+
+### Running the Executable
+
+```bash
+# Navigate to the dist directory
+cd dist
+
+# Make the file executable (if needed)
+chmod +x NetworkMounter
+
+# Run the application
+./NetworkMounter
+```
+
+### Distribution
+
+To share the application, simply copy the `NetworkMounter` file from the `dist` directory. The recipient needs to:
+
+1. Have the required system packages installed:
+   ```bash
+   sudo apt-get install cifs-utils nfs-common
+   ```
+
+2. Make the file executable:
+   ```bash
+   chmod +x NetworkMounter
+   ```
+
+3. Run it:
+   ```bash
+   ./NetworkMounter
+   ```
+
+## Development
 
 #### Features
 
