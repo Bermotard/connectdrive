@@ -36,6 +36,7 @@ class NetworkMounter:
         file_menu = tk.Menu(menubar, tearoff=0)
         file_menu.add_command(label="List Mounts", command=self.list_mounts)
         file_menu.add_command(label="Display fstab", command=self.display_fstab)
+        file_menu.add_command(label="Create Credential File", command=self.create_credential_file)
         file_menu.add_command(label="Console", command=self.show_console)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
@@ -286,6 +287,92 @@ class NetworkMounter:
         self.log_text.insert(tk.END, message + "\n")
         self.log_text.see(tk.END)
         self.root.update()
+        
+    def create_credential_file(self):
+        """Create a credential file for CIFS mounts"""
+        # Create a new window for credential input
+        cred_window = tk.Toplevel(self.root)
+        cred_window.title("Create Credential File")
+        cred_window.geometry("500x300")
+        cred_window.resizable(False, False)
+        
+        # Center the window
+        window_width = 500
+        window_height = 300
+        screen_width = cred_window.winfo_screenwidth()
+        screen_height = cred_window.winfo_screenheight()
+        x = (screen_width // 2) - (window_width // 2)
+        y = (screen_height // 2) - (window_height // 2)
+        cred_window.geometry(f'{window_width}x{window_height}+{x}+{y}')
+        
+        # Variables
+        cred_name = tk.StringVar()
+        username = tk.StringVar()
+        password = tk.StringVar()
+        domain = tk.StringVar()
+        
+        # Create form
+        ttk.Label(cred_window, text="Credential File Name (without extension):").pack(pady=(10, 0))
+        ttk.Entry(cred_window, textvariable=cred_name, width=40).pack(pady=5)
+        
+        ttk.Label(cred_window, text="Username:").pack(pady=(10, 0))
+        ttk.Entry(cred_window, textvariable=username, width=40).pack(pady=5)
+        
+        ttk.Label(cred_window, text="Password:").pack(pady=(10, 0))
+        ttk.Entry(cred_window, textvariable=password, show="*").pack(pady=5)
+        
+        ttk.Label(cred_window, text="Domain (optional):").pack(pady=(10, 0))
+        ttk.Entry(cred_window, textvariable=domain, width=40).pack(pady=5)
+        
+        # Status label
+        status_label = ttk.Label(cred_window, text="", foreground="red")
+        status_label.pack(pady=10)
+        
+        def save_credentials():
+            if not cred_name.get() or not username.get() or not password.get():
+                status_label.config(text="Error: Name, username and password are required!")
+                return
+                
+            try:
+                # Create credentials directory if it doesn't exist
+                cred_dir = os.path.expanduser("~/.cifs_credentials")
+                os.makedirs(cred_dir, mode=0o700, exist_ok=True)
+                
+                # Create credential file
+                cred_file = os.path.join(cred_dir, f"{cred_name.get()}.cred")
+                with open(cred_file, 'w') as f:
+                    f.write(f"username={username.get()}\n")
+                    f.write(f"password={password.get()}\n")
+                    if domain.get():
+                        f.write(f"domain={domain.get()}\n")
+                
+                # Set secure permissions
+                os.chmod(cred_file, 0o600)
+                
+                # Update status
+                status_label.config(
+                    text=f"Credential file created at:\n{cred_file}\n\n"
+                         f"Use it in fstab with:\n"
+                         f"credentials={cred_file}",
+                    foreground="green"
+                )
+                
+                # Clear password field for security
+                password.set("")
+                
+            except Exception as e:
+                status_label.config(text=f"Error creating credential file: {str(e)}")
+        
+        # Add buttons
+        btn_frame = ttk.Frame(cred_window)
+        btn_frame.pack(pady=10)
+        
+        ttk.Button(btn_frame, text="Save", command=save_credentials).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Cancel", command=cred_window.destroy).pack(side=tk.LEFT, padx=5)
+        
+        # Set focus to first field
+        cred_window.after(100, lambda: cred_window.focus_force())
+        cred_window.grab_set()
     
     def get_sudo_password(self):
         """Display a dialog to enter sudo password"""
@@ -544,7 +631,7 @@ class NetworkMounter:
             return False
     
     def add_to_fstab(self):
-        """Add an entry to the fstab file"""
+        """Add an entry to the fstab file using a credential file for security"""
         server = self.server.get().strip()
         share = self.share.get().strip()
         mount_point = self.mount_point.get().strip()
@@ -558,25 +645,48 @@ class NetworkMounter:
             messagebox.showerror("Error", "Please fill in all required fields")
             return False
         
-        # Construire la ligne fstab
+        # Build source path
         source = f"//{server}/{share}" if filesystem == "cifs" else f"{server}:{share}"
         
-        # Préparer les options pour fstab
+        # Prepare fstab options
         fstab_options = options
-        if filesystem == "cifs":
-            creds = []
-            if username:
-                creds.append(f"username={username}")
-            if password:
-                # Note: Stocker le mot de passe en clair dans fstab n'est pas sécurisé
-                # Une meilleure approche serait d'utiliser un fichier d'identifiants
-                creds.append(f"password={password}")
-            if domain:
-                creds.append(f"domain={domain}")
-            
-            if creds:
-                fstab_options = f"{options},{','.join(creds)}" if options else ",".join(creds)
+        creds_file_path = None
         
+        if filesystem == "cifs" and (username or password or domain):
+            try:
+                # Create credentials directory if it doesn't exist
+                cred_dir = os.path.expanduser("~/.cifs_credentials")
+                os.makedirs(cred_dir, mode=0o700, exist_ok=True)
+                
+                # Create a unique credential filename based on server and share
+                cred_name = f"{server}_{share.replace('/', '_')}.cred"
+                creds_file_path = os.path.join(cred_dir, cred_name)
+                
+                # Create the credentials file
+                with open(creds_file_path, 'w') as f:
+                    if username:
+                        f.write(f"username={username}\n")
+                    if password:
+                        f.write(f"password={password}\n")
+                    if domain:
+                        f.write(f"domain={domain}\n")
+                
+                # Set secure permissions
+                os.chmod(creds_file_path, 0o600)
+                
+                # Add credentials file to options
+                creds_option = f"credentials={creds_file_path}"
+                fstab_options = f"{options},{creds_option}" if options else creds_option
+                
+                self.log(f"Created credentials file: {creds_file_path}")
+                
+            except Exception as e:
+                error_msg = f"Failed to create credentials file: {str(e)}"
+                self.log(error_msg)
+                messagebox.showerror("Error", error_msg)
+                return False
+        
+        # Build the fstab line
         fstab_line = f"{source}\t{mount_point}\t{filesystem}\t{fstab_options}\t0 0\n"
         
         try:
