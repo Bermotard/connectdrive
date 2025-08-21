@@ -11,8 +11,8 @@ RESOURCES_DIR = ROOT_DIR / 'resources'
 # Configuration de l'application
 APP_NAME = "Network Drive Mounter"
 APP_VERSION = "1.0.0"
-DEFAULT_WINDOW_SIZE = "600x600"
-MIN_WINDOW_SIZE = (550, 550)
+DEFAULT_WINDOW_SIZE = "800x800"
+MIN_WINDOW_SIZE = (700, 700)
 
 # Configuration des partages réseau
 DEFAULT_FILESYSTEM = "cifs"

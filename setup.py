@@ -6,8 +6,8 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setup(
     name="connectdrive",
     version="1.0.0",
-    author="Votre Nom",
-    author_email="votre.email@example.com",
+    author="Bernard Gosset",
+    author_email="bgosset83@gmail.com",
     description="Outil de montage de partages réseau avec interface graphique",
     long_description=long_description,
     long_description_content_type="text/markdown",

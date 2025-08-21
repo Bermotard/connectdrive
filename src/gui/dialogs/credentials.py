@@ -1,5 +1,5 @@
 """
-Boîte de dialogue pour gérer les identifiants de connexion.
+Dialog for managing connection credentials.
 """
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -8,25 +8,25 @@ from pathlib import Path
 import os
 
 class CredentialsDialog:
-    """Boîte de dialogue pour gérer les identifiants de connexion."""
+    """Dialog for managing connection credentials."""
     
     def __init__(self, parent):
         """
-        Initialise la boîte de dialogue.
+        Initialize the dialog.
         
         Args:
-            parent: Fenêtre parente
+            parent: Parent window
         """
         self.parent = parent
         self.result = None
         
-        # Créer la fenêtre modale
+        # Create the modal window
         self.top = tk.Toplevel(parent)
-        self.top.title("Gestion des identifiants")
+        self.top.title("Credentials Management")
         self.top.geometry("500x300")
         self.top.resizable(False, False)
         
-        # Centrer la fenêtre
+        # Center the window
         self._center_window()
         
         # Variables
@@ -37,18 +37,18 @@ class CredentialsDialog:
             'domain': tk.StringVar()
         }
         
-        # Configuration de l'interface
+        # UI Setup
         self._setup_ui()
         
-        # Rendre la fenêtre modale
+        # Make the window modal
         self.top.transient(parent)
         self.top.grab_set()
         
-        # Gestion de la fermeture de la fenêtre
+        # Handle window close
         self.top.protocol("WM_DELETE_WINDOW", self._on_cancel)
     
     def _center_window(self) -> None:
-        """Centre la fenêtre sur l'écran."""
+        """Center the window on the screen."""
         self.top.update_idletasks()
         width = self.top.winfo_width()
         height = self.top.winfo_height()
@@ -57,21 +57,21 @@ class CredentialsDialog:
         self.top.geometry(f'500x300+{x}+{y}')
     
     def _setup_ui(self) -> None:
-        """Configure l'interface utilisateur."""
-        # Frame principal
+        """Configure the user interface."""
+        # Main frame
         main_frame = ttk.Frame(self.top, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Formulaire
-        form_frame = ttk.LabelFrame(main_frame, text="Nouveaux identifiants", padding=10)
+        # Form
+        form_frame = ttk.LabelFrame(main_frame, text="New Credentials", padding=10)
         form_frame.pack(fill=tk.X, pady=5)
         
-        # Champs du formulaire
+        # Form fields
         fields = [
-            ("Nom:", "name"),
-            ("Utilisateur:", "username"),
-            ("Mot de passe:", "password", True),
-            ("Domaine (optionnel):", "domain")
+            ("Name:", "name"),
+            ("Username:", "username"),
+            ("Password:", "password", True),
+            ("Domain (optional):", "domain")
         ]
         
         for i, field in enumerate(fields):
@@ -87,48 +87,48 @@ class CredentialsDialog:
             )
             entry.grid(row=i, column=1, sticky=tk.EW, padx=5, pady=2)
         
-        # Configuration de la grille
+        # Grid configuration
         form_frame.columnconfigure(1, weight=1)
         
-        # Boutons
+        # Buttons
         btn_frame = ttk.Frame(main_frame)
         btn_frame.pack(fill=tk.X, pady=10)
         
         ttk.Button(
             btn_frame, 
-            text="Enregistrer", 
+            text="Save", 
             command=self._on_save
         ).pack(side=tk.RIGHT, padx=5)
         
         ttk.Button(
             btn_frame, 
-            text="Annuler", 
+            text="Cancel", 
             command=self._on_cancel
         ).pack(side=tk.RIGHT, padx=5)
         
-        # Raccourcis clavier
+        # Keyboard shortcuts
         self.top.bind('<Return>', lambda e: self._on_save())
         self.top.bind('<Escape>', lambda e: self._on_cancel())
     
     def _on_save(self) -> None:
-        """Gère l'événement de sauvegarde."""
-        # Vérifier les champs obligatoires
+        """Handle save event."""
+        # Check required fields
         if not all([self.credentials['name'].get(), 
                    self.credentials['username'].get(),
                    self.credentials['password'].get()]):
             messagebox.showerror(
-                "Erreur",
-                "Veuillez remplir tous les champs obligatoires (nom, utilisateur, mot de passe)"
+                "Error",
+                "Please fill in all required fields (name, username, password)"
             )
             return
         
-        # Préparer le résultat
+        # Prepare the result
         self.result = {k: v.get() for k, v in self.credentials.items()}
         
-        # Fermer la fenêtre
+        # Close the window
         self.top.destroy()
     
     def _on_cancel(self) -> None:
-        """Gère l'événement d'annulation."""
+        """Handle cancel event."""
         self.result = None
         self.top.destroy()

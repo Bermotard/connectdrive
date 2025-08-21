@@ -42,14 +42,14 @@ __all__ = [
     'CredentialsError',
     'ValidationError',
     
-    # Validateurs
+    # Validators
     'validate_hostname',
     'validate_share_path',
     'validate_mount_point',
     'validate_credentials',
     'validate_fs_type',
     
-    # Utilitaires système
+    # System utilities
     'run_command',
     'ensure_directory',
     'is_mounted',
@@ -58,14 +58,14 @@ __all__ = [
     'mount_share',
     'unmount_share',
     
-    # Fichier fstab
+    # Fstab
     'Fstab',
     'FstabEntry',
     
-    # Gestion des identifiants
+    # Credentials
     'CredentialsManager',
     
-    # Journalisation
+    # Logger
     'setup_logger',
     'get_logger'
 ]

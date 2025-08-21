@@ -13,7 +13,17 @@ class FstabService:
     """Service pour gérer les opérations liées à fstab."""
     
     def __init__(self):
-        self.fstab_path = Path(settings.FSTAB_PATH)
+        self._fstab_path = Path(settings.FSTAB_PATH)
+        
+    @property
+    def fstab_path(self) -> Path:
+        """Retourne le chemin vers le fichier fstab."""
+        return self._fstab_path
+        
+    @fstab_path.setter
+    def fstab_path(self, path):
+        """Définit le chemin vers le fichier fstab."""
+        self._fstab_path = Path(path).resolve()
     
     def read_fstab(self) -> Tuple[bool, str]:
         """Lit le contenu du fichier fstab."""
