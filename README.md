@@ -1,109 +1,112 @@
 # ConnectDrive
 
-A Python-based network drive mounter with a graphical interface for managing network shares on Linux systems.
+Network share mounting tool with a graphical interface for Linux.
+
+## Features
+
+- Mount/unmount network shares (CIFS/NFS)
+- Mount point management
+- Mount options configuration
+- Secure credential management
+- Integration with fstab for permanent mounts
+- Intuitive graphical interface
+
+## Prerequisites
+
+- Python 3.8 or higher
+- System packages:
+  - `cifs-utils` for CIFS/Samba support
+  - `nfs-common` for NFS support
+  - `python3-tk` for the graphical interface
 
 ## Installation
 
 1. Clone the repository:
-```bash
-git clone https://github.com/bermotard/connectdrive.git
-cd connectdrive
-```
-
-2. Create a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Linux/Mac
-# or
-# .\venv\Scripts\activate  # On Windows
-```
-
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-## Usage
-
-### Network Drive Mounter
-
-The `network_mounter.py` program provides a graphical interface to mount network shares and add them to the fstab file.
-
-#### Prerequisites
-
-- Python 3.6 or higher
-- Required system packages (for Ubuntu/Debian):
-  ```bash
-  sudo apt-get install cifs-utils nfs-common
-  ```
-
-#### Install Python Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-#### Launch the Program
-
-```bash
-python network_mounter.py
-```
-
-## Building a Standalone Executable
-
-You can create a standalone executable that doesn't require Python to be installed.
-
-### Prerequisites
-
-```bash
-sudo apt-get install python3-venv python3-pip
-```
-
-### Build Steps
-
-1. Clone the repository (if you haven't already):
    ```bash
    git clone https://github.com/bermotard/connectdrive.git
    cd connectdrive
    ```
 
-2. Make the build script executable and run it:
+2. Create a virtual environment (recommended):
    ```bash
-   chmod +x build.sh
-   ./build.sh
+   python -m venv venv
+   source venv/bin/activate  # On Linux/Mac
+   # OR
+   # .\venv\Scripts\activate  # On Windows
    ```
 
-3. The executable will be created in the `dist` directory.
+3. Install the dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-### Running the Executable
+## Usage
+
+### Development mode
 
 ```bash
-# Navigate to the dist directory
-cd dist
-
-# Make the file executable (if needed)
-chmod +x NetworkMounter
-
-# Run the application
-./NetworkMounter
+python3 -m src
 ```
 
-### Distribution
+### System installation
 
-To share the application, simply copy the `NetworkMounter` file from the `dist` directory. The recipient needs to:
+```bash
+# Install in development mode
+pip install -e .
 
-1. Have the required system packages installed:
-   ```bash
-   sudo apt-get install cifs-utils nfs-common
-   ```
+# Launch the application
+connectdrive
+```
 
-2. Make the file executable:
-   ```bash
-   chmod +x NetworkMounter
-   ```
+### Building an executable
 
-3. Run it:
-   ```bash
+```bash
+# Install pyinstaller
+pip install pyinstaller
+
+# Build the executable
+./build.sh
+
+# Run the application
+./dist/NetworkMounter
+```
+
+## Project Structure
+
+```
+connectdrive/
+├── src/                    # Source code
+│   ├── config/            # Configuration
+│   ├── gui/               # Graphical interface
+│   │   ├── dialogs/       # Dialog boxes
+│   │   └── widgets/       # Custom widgets
+│   ├── services/          # Business services
+│   └── utils/             # Utilities
+├── tests/                 # Unit tests
+├── docs/                  # Documentation
+├── resources/             # Resources (icons, etc.)
+├── .gitignore
+├── MANIFEST.in
+├── README.md
+├── requirements.txt
+└── setup.py
+```
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
+
+## Contributing
+
+Contributions are welcome! Feel free to open an issue or submit a pull request.
+
+## Author
+
+[Your Name] - [your.email@example.com]
+
+## Support
+
+If you encounter any issues or have questions, please open an issue on GitHub.
    ./NetworkMounter
    ```
 
@@ -132,15 +135,3 @@ To share the application, simply copy the `NetworkMounter` file from the `dist` 
 2. Click "Mount" to mount the share immediately
 3. If successful, click "Add to fstab" to make it permanent
 4. Or use "Do Everything" to perform both operations at once
-
-## Project Structure
-
-```
-connectdrive/
-├── src/           # Source code
-├── tests/         # Unit tests
-├── docs/          # Documentation
-├── .gitignore
-├── README.md
-└── requirements.txt
-```
