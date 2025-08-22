@@ -104,20 +104,14 @@ class FstabService:
                 tmp_path = tmp_file.name
             
             try:
-                # Use sudo to copy the temporary file to the actual fstab
+                # Use a single sudo command to both copy and set permissions
                 success, message = self._mount_service._run_sudo_command(
-                    ["cp", tmp_path, str(self.fstab_path)],
+                    ["sh", "-c", f"cp {shlex.quote(tmp_path)} {shlex.quote(str(self.fstab_path))} && chmod 644 {shlex.quote(str(self.fstab_path))}"],
                     parent_window=self.parent_window
                 )
                 
                 if not success:
                     return False, f"Failed to update fstab: {message}"
-                
-                # Set correct permissions
-                self._mount_service._run_sudo_command(
-                    ["chmod", "644", str(self.fstab_path)],
-                    parent_window=self.parent_window
-                )
                 
                 return True, "Entry successfully added to fstab"
                 
