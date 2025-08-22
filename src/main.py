@@ -2,8 +2,14 @@
 """
 Point d'entrée principal de l'application Network Drive Mounter.
 """
+import sys
+import os
 import tkinter as tk
-from .gui.main_window import MainWindow
+
+# Add the src directory to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.gui.main_window import MainWindow
 
 def main():
     """Lance l'application principale."""

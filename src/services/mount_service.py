@@ -22,8 +22,10 @@ class MountService:
     
     def __init__(self):
         """Initialise le service de montage avec le gestionnaire d'identifiants."""
+        from .network_share import NetworkShareService
         self.credentials_manager = CredentialsManager()
         self.active_credentials = {}  # Pour garder une trace des fichiers de credentials actifs
+        self.network_share_service = NetworkShareService()
 
     def _run_sudo_command(self, command: List[str], parent_window: Optional[tk.Tk] = None) -> Tuple[bool, str]:
         """

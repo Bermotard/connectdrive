@@ -2,11 +2,11 @@
 
 
 a = Analysis(
-    ['network_mounter.py'],
+    ['src/main.py'],
     pathex=[],
     binaries=[],
-    datas=[('version.txt', '.')],
-    hiddenimports=[],
+    datas=[('version.txt', '.'), ('src/config', 'config'), ('src/gui', 'gui'), ('src/services', 'services'), ('src/utils', 'utils')],
+    hiddenimports=['PyQt5.QtWidgets', 'PyQt5.QtCore', 'PyQt5.QtGui', 'cryptography', 'keyring'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

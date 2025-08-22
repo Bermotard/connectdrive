@@ -2,8 +2,20 @@
 Service pour gérer les opérations liées aux partages réseau.
 """
 import logging
+import os
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
+
+# Set up file logging
+log_file = os.path.expanduser('~/network_mounter_debug.log')
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file, mode='w'),
+        logging.StreamHandler()
+    ]
+)
 
 from ..utils.system import (
     ensure_directory,
@@ -147,6 +159,114 @@ class NetworkShareService:
             logger.error("Erreur lors de l'ajout à fstab: %s", e)
             return False, f"Erreur lors de l'ajout à fstab: {str(e)}"
     
+    def find_unused_credentials(self) -> List[Dict[str, str]]:
+        """
+        Trouve les fichiers d'identifiants qui ne sont plus référencés dans fstab.
+        
+        Returns:
+            Liste des dictionnaires contenant les informations des identifiants inutilisés
+        """
+        logger.info("Recherche des identifiants non utilisés...")
+        
+        # Récupérer tous les fichiers d'identifiants
+        credential_files = self.credentials_manager.list_credential_files()
+        logger.info(f"Fichiers d'identifiants trouvés: {[str(f) for f in credential_files]}")
+        
+        # Récupérer tous les chemins de credentials utilisés dans fstab
+        used_cred_paths = set()
+        for entry in self.fstab.entries:
+            logger.debug(f"Analyse de l'entrée fstab: {entry.filesystem} -> {entry.mount_point}")
+            logger.debug(f"Options: {entry.options}")
+            
+            if 'credentials=' in entry.options:
+                # Extraire le chemin du fichier de credentials
+                for opt in entry.options.split(','):
+                    opt = opt.strip()
+                    if opt.startswith('credentials='):
+                        try:
+                            # Extraire le chemin entre les guillemets s'ils existent
+                            cred_path = opt.split('=', 1)[1].strip('\'\"')
+                            # Convertir en chemin absolu et normaliser
+                            cred_path = Path(cred_path).expanduser().resolve()
+                            used_cred_paths.add(cred_path)
+                            logger.info(f"Credential utilisé trouvé dans fstab: {cred_path}")
+                            logger.debug(f"Chemin normalisé: {cred_path}")
+                            logger.debug(f"Chemin existe: {cred_path.exists()}")
+                        except Exception as e:
+                            logger.error(f"Erreur lors du traitement du chemin dans fstab: {opt} - {e}")
+        
+        logger.info(f"Chemins de credentials utilisés dans fstab: {[str(p) for p in used_cred_paths]}")
+        logger.info(f"Nombre de chemins uniques: {len(used_cred_paths)}")
+        
+        # Trouver les fichiers d'identifiants non référencés
+        unused_creds = []
+        for cred_file in credential_files:
+            try:
+                cred_path = cred_file.expanduser().resolve()
+                is_used = False
+                logger.info(f"\nVérification du fichier: {cred_path}")
+                logger.info(f"Chemin normalisé: {cred_path}")
+                
+                # Vérifier si ce fichier est utilisé dans fstab
+                for used_path in used_cred_paths:
+                    try:
+                        logger.debug(f"Comparaison avec le chemin utilisé: {used_path}")
+                        
+                        # 1. Essayer d'abord avec samefile() pour gérer les liens symboliques
+                        if cred_path.exists() and used_path.exists():
+                            if cred_path.samefile(used_path):
+                                is_used = True
+                                logger.info(f"=> FICHIER TROUVÉ (samefile): {cred_path} == {used_path}")
+                                break
+                        
+                        # 2. Comparer les chemins normalisés
+                        if str(cred_path) == str(used_path):
+                            is_used = True
+                            logger.info(f"=> FICHIER TROUVÉ (chemin identique): {cred_path}")
+                            break
+                            
+                        # 3. Comparaison des noms de fichiers (au cas où les chemins seraient différents mais le fichier le même)
+                        if cred_path.name == used_path.name:
+                            is_used = True
+                            logger.info(f"=> FICHIER TROUVÉ (même nom de fichier): {cred_path.name}")
+                            break
+                            
+                        # 4. Vérifier les noms de fichiers similaires (avec des points/underscores différents)
+                        def normalize_name(name):
+                            # Remplacer les points par des underscores pour la comparaison
+                            return name.replace('.', '_')
+                            
+                        if normalize_name(cred_path.name) == normalize_name(used_path.name):
+                            is_used = True
+                            logger.info(f"=> FICHIER TROUVÉ (noms similaires): {cred_path.name} ~= {used_path.name}")
+                            break
+                            
+                    except Exception as e:
+                        logger.warning(f"Erreur lors de la comparaison des chemins {cred_path} et {used_path}: {e}")
+                
+                if not is_used:
+                    try:
+                        logger.info(f"=> FICHIER NON TROUVÉ DANS FSTAB: {cred_path}")
+                        creds = self.credentials_manager.parse_credentials_file(cred_path)
+                        unused_creds.append({
+                            'path': str(cred_path),
+                            'username': creds.get('username', ''),
+                            'domain': creds.get('domain', ''),
+                            'file': cred_path.name,
+                            'size': cred_path.stat().st_size,
+                            'mtime': cred_path.stat().st_mtime
+                        })
+                    except Exception as e:
+                        logger.error(f"Erreur lors de la lecture du fichier {cred_path}: {e}")
+                else:
+                    logger.info(f"=> FICHIER DÉJÀ UTILISÉ DANS FSTAB: {cred_path}")
+                    
+            except Exception as e:
+                logger.error(f"Erreur lors du traitement du fichier {cred_file}: {e}")
+        
+        logger.info(f"\nRésumé: {len(unused_creds)} fichiers d'identifiants inutilisés trouvés sur {len(credential_files)} fichiers analysés")
+        return unused_creds
+        
     def _remove_from_fstab(self, mount_point: Union[str, Path]) -> Tuple[bool, str]:
         """Supprime une entrée de fstab."""
         try:

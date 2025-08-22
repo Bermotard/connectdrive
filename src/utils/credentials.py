@@ -6,7 +6,7 @@ import logging
 import uuid
 import stat
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from .exceptions import CredentialsError
 from .system import secure_file_write
@@ -162,6 +162,15 @@ class CredentialsManager:
             logger.error("Erreur lors de la suppression du fichier %s: %s", file_path, e)
             return False
     
+    def list_credential_files(self) -> List[Path]:
+        """
+        Liste tous les fichiers d'identifiants dans le répertoire des identifiants.
+        
+        Returns:
+            Liste des chemins vers les fichiers d'identifiants
+        """
+        return list(self.credentials_dir.glob("*.cred"))
+        
     def cleanup_old_credentials(self, max_age_days: int = 30) -> Tuple[int, int]:
         """
         Nettoie les fichiers d'identifiants anciens.

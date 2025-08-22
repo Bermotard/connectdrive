@@ -7,6 +7,7 @@ from typing import Dict, Optional
 
 from ..config import settings
 from .dialogs.credentials import CredentialsDialog
+from .dialogs.purge_credentials_dialog import PurgeCredentialsDialog
 from ..services.mount_service import MountService
 from ..services.fstab_service import FstabService
 from ..utils.logger import setup_logger
@@ -50,7 +51,13 @@ class MainWindow:
         file_menu = tk.Menu(menubar, tearoff=0)
         file_menu.add_command(label="Mount Points", command=self._list_mounts)
         file_menu.add_command(label="View fstab", command=self._show_fstab)
-        file_menu.add_command(label="Manage Credentials", command=self._manage_credentials)
+        
+        # Credentials submenu
+        creds_menu = tk.Menu(file_menu, tearoff=0)
+        creds_menu.add_command(label="Manage Credentials", command=self._manage_credentials)
+        creds_menu.add_command(label="Purge Unused Credentials", command=self._purge_credentials)
+        file_menu.add_cascade(label="Credentials", menu=creds_menu)
+        
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
         
@@ -463,10 +470,24 @@ class MainWindow:
             messagebox.showerror("Error", error_msg)
             self._log(error_msg)
     
-    def _manage_credentials(self) -> None:
+    def _manage_credentials(self):
         """Open the credentials management dialog."""
         dialog = CredentialsDialog(self.root)
         self.root.wait_window(dialog.top)
+        
         if dialog.result:
-            self._log("Credentials saved")
-
+            self._log(f"Saved credentials for {dialog.result['name']}")
+    
+    def _purge_credentials(self):
+        """Open the purge credentials dialog."""
+        from .dialogs.purge_credentials_dialog import PurgeCredentialsDialog
+        
+        def on_purge_complete():
+            self._log("Purged unused credentials")
+        
+        dialog = PurgeCredentialsDialog(
+            self.root,
+            self.mount_service.network_share_service if hasattr(self.mount_service, 'network_share_service') else self.mount_service,
+            on_purge_complete=on_purge_complete
+        )
+        self.root.wait_window(dialog.top)
