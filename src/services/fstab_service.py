@@ -7,13 +7,22 @@ import os
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 
-from config import settings
+import tkinter as tk
+from ..config import settings
+from .mount_service import MountService
 
 class FstabService:
     """Service pour gérer les opérations liées à fstab."""
     
-    def __init__(self):
+    def __init__(self, parent_window: Optional[tk.Tk] = None):
+        """Initialize the FstabService.
+        
+        Args:
+            parent_window: Parent window for dialogs
+        """
         self._fstab_path = Path(settings.FSTAB_PATH)
+        self._mount_service = MountService()  # For sudo commands
+        self.parent_window = parent_window
         
     @property
     def fstab_path(self) -> Path:
@@ -85,11 +94,39 @@ class FstabService:
             if source in content and str(mount_point) in content:
                 return False, "Cette entrée existe déjà dans fstab"
             
-            # Ajouter la nouvelle entrée
-            with open(self.fstab_path, 'a') as f:
-                f.write(f"\n# Added by NetworkMounter\n{fstab_line}")
+            # Prepare the entry to add
+            entry_to_add = f"\n# Added by NetworkMounter\n{fstab_line}"
             
-            return True, "Entrée ajoutée avec succès à fstab"
+            # Create a temporary file with the new content
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmp_file:
+                tmp_file.write(content + entry_to_add)
+                tmp_path = tmp_file.name
+            
+            try:
+                # Use sudo to copy the temporary file to the actual fstab
+                success, message = self._mount_service._run_sudo_command(
+                    ["cp", tmp_path, str(self.fstab_path)],
+                    parent_window=self.parent_window
+                )
+                
+                if not success:
+                    return False, f"Failed to update fstab: {message}"
+                
+                # Set correct permissions
+                self._mount_service._run_sudo_command(
+                    ["chmod", "644", str(self.fstab_path)],
+                    parent_window=self.parent_window
+                )
+                
+                return True, "Entry successfully added to fstab"
+                
+            finally:
+                # Clean up the temporary file
+                try:
+                    os.unlink(tmp_path)
+                except Exception as e:
+                    logger.warning(f"Could not remove temporary file {tmp_path}: {e}")
             
         except Exception as e:
             return False, f"Erreur lors de l'ajout à fstab: {str(e)}"

@@ -9,9 +9,9 @@ import tempfile
 from pathlib import Path
 from typing import Dict, Optional, Tuple, List, Any, Union
 
-from config import settings
-from utils.credentials import CredentialsManager
-from utils.exceptions import CredentialsError, MountError
+from ..config import settings
+from ..utils.credentials import CredentialsManager
+from ..utils.exceptions import CredentialsError, MountError
 from ..gui.dialogs.sudo_password_dialog import SudoPasswordDialog
 import tkinter as tk
 

@@ -23,7 +23,7 @@ class MainWindow:
         
         # Services
         self.mount_service = MountService()
-        self.fstab_service = FstabService()
+        self.fstab_service = FstabService(parent_window=self.root)
         
         # Variables
         self.vars = {
@@ -334,8 +334,47 @@ class MainWindow:
     
     def _add_to_fstab(self) -> None:
         """Add entry to fstab."""
-        self._log("Adding to fstab...")
-        # Implementation of adding to fstab...
+        try:
+            # Get parameters
+            server = self.vars['server'].get().strip()
+            share = self.vars['share'].get().strip()
+            mount_point = self.vars['mount_point'].get().strip()
+            username = self.vars['username'].get().strip()
+            password = self.vars['password'].get()
+            domain = self.vars['domain'].get().strip()
+            filesystem = self.vars['filesystem'].get().strip()
+            options = self.vars['options'].get().strip()
+            
+            # Validate required fields
+            if not all([server, share, mount_point]):
+                messagebox.showerror("Error", "Server, Share, and Mount Point are required fields")
+                return
+                
+            self._log(f"Adding {server}/{share} to fstab...")
+            
+            # Add to fstab
+            success, message = self.fstab_service.add_fstab_entry(
+                server=server,
+                share=share,
+                mount_point=mount_point,
+                filesystem=filesystem,
+                options=options,
+                username=username or None,
+                password=password or None,
+                domain=domain or None
+            )
+            
+            if success:
+                self._log(f"Success: {message}")
+                messagebox.showinfo("Success", "Entry successfully added to fstab")
+            else:
+                self._log(f"Failed: {message}")
+                messagebox.showerror("Error", f"Failed to add to fstab: {message}")
+                
+        except Exception as e:
+            error_msg = f"Error adding to fstab: {str(e)}"
+            self._log(error_msg)
+            messagebox.showerror("Error", error_msg)
     
     def _do_everything(self) -> None:
         """Perform all actions (mount + fstab)."""
