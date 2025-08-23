@@ -2,9 +2,9 @@
 
 
 a = Analysis(
-    ['src/main.py'],
+    ['src/__main__.py'],
     pathex=[],
-    binaries=[],
+    binaries=[('/lib/x86_64-linux-gnu/libc.so.6', '.'), ('/lib/x86_64-linux-gnu/libm.so.6', '.')],
     datas=[('version.txt', '.'), ('src/config', 'config'), ('src/gui', 'gui'), ('src/services', 'services'), ('src/utils', 'utils')],
     hiddenimports=['PyQt5.QtWidgets', 'PyQt5.QtCore', 'PyQt5.QtGui', 'cryptography', 'keyring'],
     hookspath=[],

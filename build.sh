@@ -39,15 +39,17 @@ pyinstaller \
   --hidden-import "PyQt5.QtGui" \
   --hidden-import "cryptography" \
   --hidden-import "keyring" \
-  src/main.py
+  --add-binary "/lib/x86_64-linux-gnu/libc.so.6:." \
+  --add-binary "/lib/x86_64-linux-gnu/libm.so.6:." \
+  src/__main__.py
 
-# Vérifier si la compilation a réussi
+# Check if compilation was successful
 if [ $? -eq 0 ]; then
-    # Rendre l'exécutable... exécutable
+    # Make the executable... executable
     chmod +x dist/NetworkMounter
-    echo "✅ Build terminé avec succès ! L'exécutable se trouve dans le dossier 'dist/'"
-    echo "   Vous pouvez l'exécuter avec: ./dist/NetworkMounter"
+    echo "✅ Build completed successfully! The executable is in the 'dist/' folder"
+    echo "   You can run it with: ./dist/NetworkMounter"
 else
-    echo "❌ Erreur lors de la compilation. Vérifiez les messages d'erreur ci-dessus."
+    echo "❌ Error during compilation. Please check the error messages above."
     exit 1
 fi

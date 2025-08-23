@@ -1,5 +1,5 @@
 """
-Service pour gérer les opérations liées aux partages réseau.
+Service for managing network share operations.
 """
 import logging
 import os
@@ -30,10 +30,10 @@ from ..utils.validators import validate_hostname, validate_share_path
 logger = logging.getLogger(__name__)
 
 class NetworkShareService:
-    """Service pour gérer les opérations liées aux partages réseau."""
+    """Service for managing network share operations."""
     
     def __init__(self, fstab_path: str = "/etc/fstab", credentials_dir: str = "~/.cifs_credentials"):
-        """Initialise le service de partage réseau."""
+        """Initialize the network share service."""
         self.fstab = Fstab(fstab_path)
         self.credentials_manager = CredentialsManager(credentials_dir)
     
@@ -50,27 +50,27 @@ class NetworkShareService:
         save_credentials: bool = False,
         add_to_fstab: bool = False
     ) -> Tuple[bool, str]:
-        """Monte un partage réseau."""
-        # Validation des entrées
+        """Mount a network share."""
+        # Input validation
         if not validate_hostname(server):
-            return False, f"Nom de serveur invalide: {server}"
+            return False, f"Invalid server name: {server}"
             
         if not validate_share_path(share):
-            return False, f"Chemin de partage invalide: {share}"
+            return False, f"Invalid share path: {share}"
         
         mount_point = Path(mount_point).resolve()
         
-        # Vérifier si le point de montage est déjà utilisé
+        # Check if mount point is already in use
         if is_mounted(mount_point):
-            return False, f"Le point de montage {mount_point} est déjà utilisé"
+            return False, f"Mount point {mount_point} is already in use"
         
-        # Créer le point de montage s'il n'existe pas
+        # Create mount point if it doesn't exist
         try:
             ensure_directory(mount_point)
         except OSError as e:
-            return False, f"Impossible de créer le point de montage {mount_point}: {e}"
+            return False, f"Failed to create mount point {mount_point}: {e}"
         
-        # Préparer la source du partage
+        # Prepare the share source
         source = f"//{server}/{share.lstrip('/')}" if fs_type.lower() in ('cifs', 'smb') else f"{server}:{share}"
         
         # Monter le partage
@@ -85,21 +85,21 @@ class NetworkShareService:
                 domain=domain
             )
             
-            # Ajouter à fstab si demandé
+            # Add to fstab if requested
             if add_to_fstab:
                 self._add_to_fstab(
                     source=source,
                     mount_point=mount_point,
                     fs_type=fs_type,
                     options=options or "defaults",
-                    comment=f"Ajouté par NetworkMounter: {server}/{share}"
+                    comment=f"Added by NetworkMounter: {server}/{share}"
                 )
             
-            return True, f"Partage monté avec succès sur {mount_point}"
+            return True, f"Share successfully mounted on {mount_point}"
             
         except Exception as e:
-            logger.error("Échec du montage de %s: %s", source, str(e))
-            return False, f"Échec du montage: {str(e)}"
+            logger.error("Failed to mount %s: %s", source, str(e))
+            return False, f"Mount failed: {str(e)}"
     
     def unmount_share(
         self,
@@ -107,11 +107,11 @@ class NetworkShareService:
         force: bool = False,
         remove_from_fstab: bool = False
     ) -> Tuple[bool, str]:
-        """Démonte un partage réseau."""
+        """Unmount a network share."""
         mount_point = Path(mount_point).resolve()
         
         if not is_mounted(mount_point):
-            return False, f"Le point de montage {mount_point} n'est pas monté"
+            return False, f"Mount point {mount_point} is not mounted"
         
         try:
             system_unmount_share(mount_point, force)
@@ -119,11 +119,11 @@ class NetworkShareService:
             if remove_from_fstab:
                 self._remove_from_fstab(mount_point)
             
-            return True, f"Partage démonté avec succès: {mount_point}"
+            return True, f"Share successfully unmounted: {mount_point}"
             
         except Exception as e:
-            logger.error("Échec du démontage de %s: %s", mount_point, str(e))
-            return False, f"Échec du démontage: {str(e)}"
+            logger.error("Failed to unmount %s: %s", mount_point, str(e))
+            return False, f"Unmount failed: {str(e)}"
     
     def _add_to_fstab(
         self,
@@ -135,12 +135,12 @@ class NetworkShareService:
         pass_num: int = 0,
         comment: str = ""
     ) -> Tuple[bool, str]:
-        """Ajoute une entrée au fichier fstab."""
+        """Add an entry to the fstab file."""
         try:
             mount_point = str(Path(mount_point).resolve())
             
             if self.fstab.find_entries_by_mount_point(mount_point):
-                return False, f"Une entrée existe déjà pour {mount_point}"
+                return False, f"An entry already exists for {mount_point}"
             
             self.fstab.add_entry(
                 filesystem=source,
@@ -153,33 +153,33 @@ class NetworkShareService:
             )
             
             self.fstab.save()
-            return True, "Configuration ajoutée à fstab"
+            return True, "Configuration added to fstab"
             
         except Exception as e:
-            logger.error("Erreur lors de l'ajout à fstab: %s", e)
-            return False, f"Erreur lors de l'ajout à fstab: {str(e)}"
+            logger.error("Error while adding to fstab: %s", e)
+            return False, f"Error while adding to fstab: {str(e)}"
     
     def find_unused_credentials(self) -> List[Dict[str, str]]:
         """
-        Trouve les fichiers d'identifiants qui ne sont plus référencés dans fstab.
+        Find credential files that are no longer referenced in fstab.
         
         Returns:
-            Liste des dictionnaires contenant les informations des identifiants inutilisés
+            List of dictionaries containing information about unused credentials
         """
-        logger.info("Recherche des identifiants non utilisés...")
+        logger.info("Searching for unused credentials...")
         
-        # Récupérer tous les fichiers d'identifiants
+        # Get all credential files
         credential_files = self.credentials_manager.list_credential_files()
-        logger.info(f"Fichiers d'identifiants trouvés: {[str(f) for f in credential_files]}")
+        logger.info(f"Found credential files: {[str(f) for f in credential_files]}")
         
-        # Récupérer tous les chemins de credentials utilisés dans fstab
+        # Get all credential paths used in fstab
         used_cred_paths = set()
         for entry in self.fstab.entries:
             logger.debug(f"Analyse de l'entrée fstab: {entry.filesystem} -> {entry.mount_point}")
             logger.debug(f"Options: {entry.options}")
             
             if 'credentials=' in entry.options:
-                # Extraire le chemin du fichier de credentials
+                # Extract the credential file path
                 for opt in entry.options.split(','):
                     opt = opt.strip()
                     if opt.startswith('credentials='):
@@ -189,64 +189,64 @@ class NetworkShareService:
                             # Convertir en chemin absolu et normaliser
                             cred_path = Path(cred_path).expanduser().resolve()
                             used_cred_paths.add(cred_path)
-                            logger.info(f"Credential utilisé trouvé dans fstab: {cred_path}")
-                            logger.debug(f"Chemin normalisé: {cred_path}")
-                            logger.debug(f"Chemin existe: {cred_path.exists()}")
+                            logger.info(f"Credential found in fstab: {cred_path}")
+                            logger.debug(f"Normalized path: {cred_path}")
+                            logger.debug(f"Path exists: {cred_path.exists()}")
                         except Exception as e:
-                            logger.error(f"Erreur lors du traitement du chemin dans fstab: {opt} - {e}")
+                            logger.error(f"Error processing path in fstab: {opt} - {e}")
         
-        logger.info(f"Chemins de credentials utilisés dans fstab: {[str(p) for p in used_cred_paths]}")
-        logger.info(f"Nombre de chemins uniques: {len(used_cred_paths)}")
+        logger.info(f"Credential paths used in fstab: {[str(p) for p in used_cred_paths]}")
+        logger.info(f"Number of unique paths: {len(used_cred_paths)}")
         
-        # Trouver les fichiers d'identifiants non référencés
+        # Find unreferenced credential files
         unused_creds = []
         for cred_file in credential_files:
             try:
                 cred_path = cred_file.expanduser().resolve()
                 is_used = False
-                logger.info(f"\nVérification du fichier: {cred_path}")
-                logger.info(f"Chemin normalisé: {cred_path}")
+                logger.info(f"\nChecking file: {cred_path}")
+                logger.info(f"Normalized path: {cred_path}")
                 
-                # Vérifier si ce fichier est utilisé dans fstab
+                # Check if this file is used in fstab
                 for used_path in used_cred_paths:
                     try:
-                        logger.debug(f"Comparaison avec le chemin utilisé: {used_path}")
+                        logger.debug(f"Comparing with used path: {used_path}")
                         
-                        # 1. Essayer d'abord avec samefile() pour gérer les liens symboliques
+                        # 1. First try with samefile() to handle symlinks
                         if cred_path.exists() and used_path.exists():
                             if cred_path.samefile(used_path):
                                 is_used = True
-                                logger.info(f"=> FICHIER TROUVÉ (samefile): {cred_path} == {used_path}")
+                                logger.info(f"=> FILE FOUND (samefile): {cred_path} == {used_path}")
                                 break
                         
-                        # 2. Comparer les chemins normalisés
+                        # 2. Compare normalized paths
                         if str(cred_path) == str(used_path):
                             is_used = True
-                            logger.info(f"=> FICHIER TROUVÉ (chemin identique): {cred_path}")
+                            logger.info(f"=> FILE FOUND (identical path): {cred_path}")
                             break
                             
-                        # 3. Comparaison des noms de fichiers (au cas où les chemins seraient différents mais le fichier le même)
+                        # 3. Compare filenames (in case paths are different but files are the same)
                         if cred_path.name == used_path.name:
                             is_used = True
-                            logger.info(f"=> FICHIER TROUVÉ (même nom de fichier): {cred_path.name}")
+                            logger.info(f"=> FILE FOUND (same filename): {cred_path.name}")
                             break
                             
-                        # 4. Vérifier les noms de fichiers similaires (avec des points/underscores différents)
+                        # 4. Check for similar filenames (with different dots/underscores)
                         def normalize_name(name):
-                            # Remplacer les points par des underscores pour la comparaison
+                            # Replace dots with underscores for comparison
                             return name.replace('.', '_')
                             
                         if normalize_name(cred_path.name) == normalize_name(used_path.name):
                             is_used = True
-                            logger.info(f"=> FICHIER TROUVÉ (noms similaires): {cred_path.name} ~= {used_path.name}")
+                            logger.info(f"=> FILE FOUND (similar names): {cred_path.name} ~= {used_path.name}")
                             break
                             
                     except Exception as e:
-                        logger.warning(f"Erreur lors de la comparaison des chemins {cred_path} et {used_path}: {e}")
+                        logger.warning(f"Error comparing paths {cred_path} and {used_path}: {e}")
                 
                 if not is_used:
                     try:
-                        logger.info(f"=> FICHIER NON TROUVÉ DANS FSTAB: {cred_path}")
+                        logger.info(f"=> FILE NOT FOUND IN FSTAB: {cred_path}")
                         creds = self.credentials_manager.parse_credentials_file(cred_path)
                         unused_creds.append({
                             'path': str(cred_path),

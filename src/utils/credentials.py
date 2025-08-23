@@ -21,19 +21,19 @@ class CredentialsManager:
         Initialise le gestionnaire d'identifiants.
         
         Args:
-            credentials_dir: Répertoire de stockage des fichiers d'identifiants
+            credentials_dir: Directory to store credentials files
         """
         self.credentials_dir = Path(credentials_dir).expanduser().resolve()
         self.ensure_credentials_dir()
     
     def ensure_credentials_dir(self) -> None:
-        """Crée le répertoire des identifiants s'il n'existe pas."""
+        """Create the credentials directory if it doesn't exist."""
         try:
             self.credentials_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-            logger.debug("Répertoire des identifiants: %s", self.credentials_dir)
+            logger.debug("Credentials directory: %s", self.credentials_dir)
         except OSError as e:
             raise CredentialsError(
-                f"Impossible de créer le répertoire des identifiants {self.credentials_dir}: {e}"
+                f"Failed to create credentials directory {self.credentials_dir}: {e}"
             )
     
     def create_credentials_file(
@@ -45,34 +45,34 @@ class CredentialsManager:
         server: Optional[str] = None
     ) -> str:
         """
-        Crée un fichier d'identifiants sécurisé.
+        Creates a secure credentials file.
         
         Args:
-            username: Nom d'utilisateur
-            password: Mot de passe
-            domain: Domaine (optionnel)
-            share_name: Nom du partage (pour le nom du fichier)
-            server: Nom du serveur (pour le nom du fichier)
+            username: Username
+            password: Password
+            domain: Domain (optional)
+            share_name: Share name (for the filename)
+            server: Server name (for the filename)
             
         Returns:
-            Chemin vers le fichier d'identifiants créé
+            Path to the created credentials file
             
         Raises:
-            CredentialsError: En cas d'erreur lors de la création du fichier
+            CredentialsError: If there's an error creating the file
         """
-        # Générer un nom de fichier unique
+        # Generate a unique filename
         if share_name and server:
-            # Utiliser un nom basé sur le serveur et le partage
+            # Use a filename based on the server and share
             safe_server = "".join(c if c.isalnum() else "_" for c in server)
             safe_share = "".join(c if c.isalnum() else "_" for c in share_name)
             filename = f"{safe_server}_{safe_share}_{uuid.uuid4().hex[:8]}.cred"
         else:
-            # Utiliser un nom aléatoire
+            # Use a random filename
             filename = f"credentials_{uuid.uuid4().hex}.cred"
         
         creds_path = self.credentials_dir / filename
         
-        # Construire le contenu du fichier
+        # Build the file content
         content = [
             f"username={username}",
             f"password={password}"
@@ -81,34 +81,34 @@ class CredentialsManager:
         if domain:
             content.append(f"domain={domain}")
         
-        # Écrire le fichier de manière sécurisée
+        # Write the file securely
         try:
             secure_file_write(creds_path, "\n".join(content), 0o600)
-            logger.info("Fichier d'identifiants créé: %s", creds_path)
+            logger.info("Credentials file created: %s", creds_path)
             return str(creds_path)
             
         except Exception as e:
             raise CredentialsError(
-                f"Erreur lors de la création du fichier d'identifiants: {e}"
+                f"Error creating credentials file: {e}"
             )
     
     def parse_credentials_file(self, file_path: Union[str, Path]) -> Dict[str, str]:
         """
-        Lit et analyse un fichier d'identifiants.
+        Read and parse a credentials file.
         
         Args:
-            file_path: Chemin vers le fichier d'identifiants
+            file_path: Path to the credentials file
             
         Returns:
-            Dictionnaire contenant les identifiants
+            Dictionary containing the credentials
             
         Raises:
-            CredentialsError: Si le fichier est inaccessible ou mal formaté
+            CredentialsError: If the file is inaccessible or malformed
         """
         file_path = Path(file_path).expanduser().resolve()
         
         if not file_path.exists():
-            raise CredentialsError(f"Le fichier d'identifiants {file_path} n'existe pas")
+            raise CredentialsError(f"Credentials file {file_path} does not exist")
         
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -123,20 +123,23 @@ class CredentialsManager:
                 key, value = line.split('=', 1)
                 creds[key.strip().lower()] = value.strip()
             
-            # Vérifier les champs obligatoires
+            # Check for required fields
             if 'username' not in creds or 'password' not in creds:
-                raise CredentialsError("Fichier d'identifiants incomplet")
+                raise CredentialsError("Incomplete credentials file")
             
             return creds
             
         except (IOError, ValueError) as e:
-            raise CredentialsError(f"Erreur lors de la lecture du fichier {file_path}: {e}")
+            raise CredentialsError(
+                f"Error reading file {file_path}: {e}"
+            )
     
     def delete_credentials_file(self, file_path: Union[str, Path]) -> bool:
         """
-        Supprime un fichier d'identifiants de manière sécurisée.
+        Delete a credentials file securely.
         
         Args:
+            file_path: Path to the credentials file
             file_path: Chemin vers le fichier d'identifiants
             
         Returns:
@@ -159,7 +162,7 @@ class CredentialsManager:
             return True
             
         except OSError as e:
-            logger.error("Erreur lors de la suppression du fichier %s: %s", file_path, e)
+            logger.error("Error deleting file %s: %s", file_path, e)
             return False
     
     def list_credential_files(self) -> List[Path]:
@@ -176,7 +179,7 @@ class CredentialsManager:
         Nettoie les fichiers d'identifiants anciens.
         
         Args:
-            max_age_days: Âge maximum en jours avant suppression
+            max_age_days: Maximum age in days before deletion
             
         Returns:
             Tuple (nombre de fichiers supprimés, nombre d'erreurs)
@@ -198,12 +201,12 @@ class CredentialsManager:
                         else:
                             errors += 1
                 except OSError as e:
-                    logger.error("Erreur lors du traitement de %s: %s", cred_file, e)
+                    logger.error("Error processing %s: %s", cred_file, e)
                     errors += 1
             
-            logger.info("Nettoyage des identifiants: %d fichiers supprimés, %d erreurs", deleted, errors)
+            logger.info("Credentials cleanup: %d files deleted, %d errors", deleted, errors)
             return deleted, errors
             
         except Exception as e:
-            logger.error("Erreur lors du nettoyage des identifiants: %s", e)
+            logger.error("Error during credentials cleanup: %s", e)
             return deleted, errors + 1

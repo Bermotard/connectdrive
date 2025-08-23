@@ -1,1 +1,1 @@
-# Widgets personnalisés pour l'interface utilisateur
+# Custom widgets for the user interface

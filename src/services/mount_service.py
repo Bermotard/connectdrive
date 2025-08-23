@@ -1,5 +1,5 @@
 """
-Service pour gérer les opérations de montage et de démontage des partages réseau.
+Service to manage mounting and unmounting network shares.
 """
 import subprocess
 import shlex
@@ -18,48 +18,48 @@ import tkinter as tk
 logger = logging.getLogger(__name__)
 
 class MountService:
-    """Service pour gérer les opérations de montage."""
+    """Service to manage mounting operations."""
     
     def __init__(self):
-        """Initialise le service de montage avec le gestionnaire d'identifiants."""
+        """Initialize the mount service with the credentials manager."""
         from .network_share import NetworkShareService
         self.credentials_manager = CredentialsManager()
-        self.active_credentials = {}  # Pour garder une trace des fichiers de credentials actifs
+        self.active_credentials = {}  # To keep track of active credential files
         self.network_share_service = NetworkShareService()
 
     def _run_sudo_command(self, command: List[str], parent_window: Optional[tk.Tk] = None) -> Tuple[bool, str]:
         """
-        Exécute une commande avec sudo en demandant le mot de passe si nécessaire.
+        Execute a command with sudo, asking for password if needed.
         
         Args:
-            command: Commande à exécuter
-            parent_window: Fenêtre parente pour la boîte de dialogue
+            command: Command to execute
+            parent_window: Parent window for the dialog
             
         Returns:
-            Tuple (succès, sortie ou message d'erreur)
+            Tuple (success, output or error message)
         """
-        # Demander le mot de passe sudo
+        # Ask for sudo password
         if parent_window is None:
             parent_window = tk.Tk()
-            parent_window.withdraw()  # Cacher la fenêtre racine
+            parent_window.withdraw()  # Hide the root window
         
         password = SudoPasswordDialog.ask_sudo_password(parent_window)
         if password is None:
-            return False, "Authentification annulée par l'utilisateur"
+            return False, "Authentication cancelled by user"
         
-        # Créer un fichier temporaire pour le mot de passe
+        # Create a temporary file for the password
         with tempfile.NamedTemporaryFile(mode='w+', delete=False) as f:
             f.write(f"{password}\n")
             temp_file = f.name
         
         try:
-            # Définir les permissions du fichier
+            # Set file permissions
             os.chmod(temp_file, 0o600)
             
-            # Construire la commande avec sudo -S pour lire le mot de passe depuis stdin
+            # Build the command with sudo -S to read password from stdin
             sudo_cmd = ["sudo", "-S"] + command
             
-            # Exécuter la commande
+            # Execute the command
             result = subprocess.run(
                 sudo_cmd,
                 input=password + "\n",
@@ -71,27 +71,27 @@ class MountService:
             if result.returncode == 0:
                 return True, result.stdout
             else:
-                error_msg = result.stderr or f"Échec de la commande (code {result.returncode})"
-                logger.error("Erreur d'exécution: %s", error_msg)
+                error_msg = result.stderr or f"Command failed (code {result.returncode})"
+                logger.error("Execution error: %s", error_msg)
                 return False, error_msg
                 
         except subprocess.TimeoutExpired:
-            error_msg = "Délai dépassé lors de l'exécution de la commande"
+            error_msg = "Command execution timed out"
             logger.error(error_msg)
             return False, error_msg
             
         except Exception as e:
-            error_msg = f"Erreur inattendue: {str(e)}"
+            error_msg = f"Unexpected error: {str(e)}"
             logger.exception(error_msg)
             return False, error_msg
             
         finally:
-            # Nettoyer le fichier temporaire
+            # Clean up temporary file
             try:
                 if os.path.exists(temp_file):
                     os.unlink(temp_file)
             except Exception as e:
-                logger.warning("Impossible de supprimer le fichier temporaire: %s", str(e))
+                logger.warning("Could not delete temporary file: %s", str(e))
     
     def mount_share(
         self,
@@ -106,44 +106,44 @@ class MountService:
         parent_window: Optional[tk.Tk] = None
     ) -> Tuple[bool, str]:
         """
-        Monte un partage réseau en utilisant un fichier d'identifiants pour la sécurité.
+        Mount a network share using a credentials file for security.
         
         Args:
-            server: Adresse du serveur
-            share: Nom du partage
-            mount_point: Point de montage local
-            username: Nom d'utilisateur (optionnel)
-            password: Mot de passe (optionnel, peut contenir des caractères spéciaux)
-            domain: Domaine (optionnel)
-            filesystem: Type de système de fichiers (par défaut: cifs)
-            options: Options de montage supplémentaires
-            parent_window: Fenêtre parente pour la boîte de dialogue
+            server: Server address
+            share: Share name
+            mount_point: Local mount point
+            username: Username (optional)
+            password: Password (optional, can contain special characters)
+            domain: Domain (optional)
+            filesystem: Filesystem type (default: cifs)
+            options: Additional mount options
+            parent_window: Parent window for the dialog
             
         Returns:
-            Tuple (succès, message)
+            Tuple (success, message)
         """
         try:
-            # Vérifier si le point de montage existe, sinon le créer
+            # Check if mount point exists, create it if not
             mount_path = Path(mount_point)
             if not mount_path.exists():
                 try:
                     mount_path.mkdir(parents=True, exist_ok=True, mode=0o755)
                 except Exception as e:
-                    error_msg = f"Impossible de créer le répertoire de montage : {str(e)}"
+                    error_msg = f"Could not create mount directory: {str(e)}"
                     logger.error(error_msg)
                     return False, error_msg
             
-            # Préparer les options de montage
+            # Prepare mount options
             mount_options = []
             
-            # Ajouter les options spécifiées
+            # Add specified options
             if options:
                 mount_options.append(options)
             
-            # Gérer les identifiants via un fichier sécurisé si un mot de passe est fourni
+            # Handle credentials via secure file if password is provided
             if username and password:
                 try:
-                    # Créer un fichier d'identifiants temporaire
+                    # Create temporary credentials file
                     creds_file = self.credentials_manager.create_credentials_file(
                         username=username,
                         password=password,
@@ -152,90 +152,83 @@ class MountService:
                         server=server
                     )
                     
-                    # Ajouter l'option credentials
+                    # Add credentials option
                     mount_options.append(f"credentials={creds_file}")
                     
-                    # Garder une trace du fichier de credentials pour le nettoyage
+                    # Keep track of credentials file for cleanup
                     self.active_credentials[mount_point] = creds_file
                     
                 except Exception as e:
-                    logger.error("Erreur lors de la création du fichier d'identifiants : %s", str(e))
-                    return False, f"Erreur de configuration des identifiants : {str(e)}"
+                    logger.error("Error creating credentials file: %s", str(e))
+                    return False, f"Error configuring credentials: {str(e)}"
             
-            # Options par défaut pour CIFS si aucune option n'est spécifiée
+            # Default options for CIFS if no options specified
             if filesystem.lower() == "cifs" and not options:
                 default_opts = [
-                    "vers=3.0",  # Version de SMB
-                    "rw",        # Lecture/écriture
-                    "nofail",    # Ne pas échouer au démarrage si le partage n'est pas disponible
-                    "x-systemd.automount",  # Montage automatique avec systemd
-                    "_netdev"    # Le partage nécessite un réseau
+                    "vers=3.0",  # SMB version
+                    "rw",        # Read/write
+                    "nofail",    # Don't fail on boot if share is unavailable
+                    "x-systemd.automount",  # Automatic mounting with systemd
+                    "_netdev"    # Share requires network
                 ]
                 mount_options.append(",".join(default_opts))
             
-            # Construire la commande de montage
+            # Build the mount command
             cmd = ["mount", "-t", filesystem]
             
-            # Ajouter les options combinées
+            # Add combined options
             if mount_options:
                 cmd.extend(["-o", ",".join(mount_options)])
             
-            # Ajouter la source et la destination
+            # Add source and destination
             source = f"//{server}/{share}" if filesystem.lower() == "cifs" else f"{server}:{share}"
             cmd.extend([source, mount_point])
             
-            # Journaliser la commande (sans le mot de passe)
-            logger.info("Exécution de la commande : %s", " ".join(["sudo"] + cmd))
+            # Log the command (without password)
+            logger.info("Executing command: %s", " ".join(["sudo"] + cmd))
             
-            # Exécuter la commande avec sudo
+            # Execute the command with sudo
             success, output = self._run_sudo_command(cmd, parent_window)
             
             if success:
-                logger.debug("Résultat du montage : %s", output)
-                return True, f"Partage {share} monté avec succès sur {mount_point}"
+                logger.debug("Mount result: %s", output)
+                return True, f"Share {share} successfully mounted on {mount_point}"
             else:
                 return False, output
                 
         except Exception as e:
-            error_msg = f"Erreur inattendue : {str(e)}"
+            error_msg = f"Unexpected error: {str(e)}"
             logger.exception(error_msg)
             return False, error_msg
             
         except subprocess.CalledProcessError as e:
-            return False, f"Échec du montage: {e.stderr}"
-        except Exception as e:
-            return False, f"Erreur inattendue: {str(e)}"
+            return False, f"Mount failed: {e.stderr}"
     
     def _is_mounted(self, mount_point: str) -> bool:
         """
-        Vérifie si un point de montage est actuellement monté.
+        Check if a mount point is currently mounted.
         
         Args:
-            mount_point: Chemin du point de montage à vérifier
+            mount_point: Path of the mount point to check
             
         Returns:
-            bool: True si le point de montage est actuellement monté, False sinon
+            bool: True if the mount point is active, False otherwise
         """
         return os.path.ismount(mount_point)
     
     def _cleanup_credentials(self, mount_point: str) -> None:
         """
-        Nettoie les fichiers d'identifiants temporaires pour un point de montage.
-        
-        Args:
-            mount_point: Point de montage pour lequel nettoyer les identifiants
-        """
+{{ ... }}
         if mount_point in self.active_credentials:
             creds_file = self.active_credentials[mount_point]
             try:
                 if os.path.exists(creds_file):
                     os.unlink(creds_file)
-                    logger.debug("Fichier d'identifiants supprimé: %s", creds_file)
+                    logger.debug("Credentials file deleted: %s", creds_file)
             except OSError as e:
-                logger.error("Erreur lors de la suppression du fichier d'identifiants %s: %s", 
-                           creds_file, e)
+                logger.warning("Error deleting credentials file: %s", str(e))
             finally:
-                # Retirer la référence même en cas d'échec de suppression
+                # Remove the reference even in case of deletion failure
                 self.active_credentials.pop(mount_point, None)
     
     def unmount_share(
@@ -246,81 +239,57 @@ class MountService:
         parent_window: Optional[tk.Tk] = None
     ) -> Tuple[bool, str]:
         """
-        Démonte un partage réseau et nettoie les ressources associées.
+        Unmount a mounted network share.
         
         Args:
-            mount_point: Point de montage à démonter
-            force: Si True, force le démontage même en cas d'utilisation
-            lazy: Si True, effectue un démontage paresseux (lazy unmount)
-            parent_window: Fenêtre parente pour la boîte de dialogue
+            mount_point: Path of the mount point to unmount
+            force: If True, force the unmount even if the device is busy
+            lazy: If True, performs a lazy unmount
+            parent_window: Parent window for the dialog
             
         Returns:
-            Tuple (succès, message)
+            Tuple (success, message)
         """
-        try:
-            # Nettoyer et normaliser le chemin du point de montage
-            mount_point = os.path.abspath(os.path.expanduser(mount_point.strip()))
-            
-            # Vérifier si le point de montage est effectivement monté
-            if not self._is_mounted(mount_point):
-                return False, f"Aucun système de fichiers n'est monté sur {mount_point}"
-            
-            # Construire la commande de démontage
-            cmd = ["umount"]
-            
-            # Ajouter les options de démontage
-            if force and not lazy:  # On ne peut pas combiner -f et -l
-                cmd.append("-f")
-                logger.info("Forçage du démontage de %s", mount_point)
-            elif lazy:
-                cmd.append("-l")
-                logger.info("Démontage paresseux de %s", mount_point)
-            
-            # Ajouter le point de montage
-            cmd.append(mount_point)
-            
-            logger.info("Exécution de la commande : sudo %s", " ".join(cmd))
-            
-            # Exécuter la commande avec sudo
+{{ ... }}
             success, output = self._run_sudo_command(cmd, parent_window)
             
             if success:
-                logger.info("Démontage réussi de %s", mount_point)
+                logger.info("Unmount successful: %s", mount_point)
                 
-                # Nettoyer le fichier de credentials si nécessaire
+                # Clean up credential files if needed
                 self._cleanup_credentials(mount_point)
                 
-                # Essayer de supprimer le répertoire de montage s'il est vide
+                # Try to delete the mount directory if it is empty
                 try:
                     mount_path = Path(mount_point)
                     if mount_path.exists() and not any(mount_path.iterdir()):
                         mount_path.rmdir()
-                        logger.debug("Répertoire de montage supprimé : %s", mount_point)
+                        logger.debug("Mount directory deleted: %s", mount_point)
                 except Exception as e:
-                    logger.warning("Impossible de supprimer le répertoire de montage : %s", str(e))
+                    logger.warning("Failed to delete mount directory: %s", str(e))
                 
-                return True, f"Partage démonté avec succès de {mount_point}"
+                return True, f"Share successfully unmounted: {mount_point}"
             else:
-                # En cas d'échec, essayer un démontage paresseux si ce n'était pas déjà le cas
+                # In case of failure, try a lazy unmount if not already done
                 if not lazy and not success and "device is busy" in output.lower():
-                    logger.info("Le périphérique est occupé, tentative de démontage paresseux...")
+                    logger.info("Device is busy, attempting lazy unmount...")
                     return self.unmount_share(mount_point, force=False, lazy=True, parent_window=parent_window)
                     
-                error_msg = f"Échec du démontage de {mount_point}: {output}"
+                error_msg = f"Unmount failed: {output}"
                 logger.error(error_msg)
                 return False, error_msg
                 
         except Exception as e:
-            error_msg = f"Erreur inattendue lors du démontage : {str(e)}"
-            logger.exception(error_msg)
+            error_msg = f"Unexpected error during unmount: {str(e)}"
+{{ ... }}
             return False, error_msg
     
     def list_mounts(self) -> Tuple[bool, str]:
         """
-        Liste les points de montage actifs.
+        List active mount points.
         
         Returns:
-            Tuple (succès, résultat ou message d'erreur)
+            Tuple (success, result or error message)
         """
         try:
             result = subprocess.run(
@@ -332,6 +301,6 @@ class MountService:
             return True, result.stdout
             
         except subprocess.CalledProcessError as e:
-            return False, f"Impossible de lister les points de montage: {e.stderr}"
+            return False, f"Failed to list mount points: {e.stderr}"
         except Exception as e:
-            return False, f"Erreur inattendue: {str(e)}"
+            return False, f"Unexpected error: {str(e)}"

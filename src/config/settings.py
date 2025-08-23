@@ -18,15 +18,15 @@ MIN_WINDOW_SIZE = (700, 700)
 DEFAULT_FILESYSTEM = "cifs"
 DEFAULT_OPTIONS = "rw,user"
 
-# Chemins système
+# System paths
 FSTAB_PATH = "/etc/fstab"
 CREDENTIALS_DIR = "~/.cifs_credentials"
 
 # Messages
 MESSAGES = {
-    "mount_success": "Partage monté avec succès sur {}",
-    "mount_failed": "Échec du montage: {}",
-    "fstab_updated": "Configuration ajoutée à fstab",
-    "fstab_failed": "Échec de la mise à jour de fstab: {}",
-    "missing_fields": "Veuillez remplir tous les champs obligatoires",
+    "mount_success": "Share successfully mounted on {}",
+    "mount_failed": "Mount failed: {}",
+    "fstab_updated": "Configuration added to fstab",
+    "fstab_failed": "Failed to update fstab: {}",
+    "missing_fields": "Please fill in all required fields",
 }

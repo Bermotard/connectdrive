@@ -10,7 +10,7 @@ class NetworkMounter:
         self.root = root
         self.root.title("Network Drive Mounter")
         self.root.geometry("600x600")
-        self.root.minsize(550, 550)  # Taille minimale pour s'assurer que tout est visible
+        self.root.minsize(550, 550)  # Minimum size to ensure everything is visible
         
         # Variables
         self.server = tk.StringVar()

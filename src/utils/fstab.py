@@ -26,16 +26,16 @@ class FstabEntry:
         comment: str = ""
     ):
         """
-        Initialise une entrée fstab.
+        Initialize an fstab entry.
         
         Args:
-            filesystem: Le système de fichiers ou la source (ex: /dev/sda1 ou //serveur/partage)
-            mount_point: Le point de montage (doit être un chemin absolu)
-            fs_type: Le type de système de fichiers (ext4, nfs, cifs, etc.)
-            options: Options de montage séparées par des virgules
-            dump: Option de sauvegarde (généralement 0 ou 1)
-            pass_num: Option de vérification au démarrage (0, 1, ou 2)
-            comment: Commentaire optionnel pour cette entrée
+            filesystem: The filesystem or source (e.g., /dev/sda1 or //server/share)
+            mount_point: The mount point (must be an absolute path)
+            fs_type: The filesystem type (ext4, nfs, cifs, etc.)
+            options: Mount options (comma-separated)
+            dump: Backup option (usually 0 or 1)
+            pass_num: Filesystem check order at boot (0, 1, or 2)
+            comment: Optional comment
         """
         self.filesystem = filesystem.strip()
         self.mount_point = str(Path(mount_point).resolve())
@@ -46,14 +46,14 @@ class FstabEntry:
         self.comment = comment.strip()
     
     def __str__(self) -> str:
-        """Retourne la représentation sous forme de chaîne de l'entrée fstab."""
+        """Return the string representation of the fstab entry."""
         line = f"{self.filesystem} {self.mount_point} {self.fs_type} {self.options} {self.dump} {self.pass_num}"
         if self.comment:
             line = f"{line}  # {self.comment}"
         return line
     
     def __eq__(self, other: object) -> bool:
-        """Compare deux entrées fstab en ignorant les commentaires."""
+        """Compare two fstab entries, ignoring comments."""
         if not isinstance(other, FstabEntry):
             return False
         return (
@@ -63,45 +63,45 @@ class FstabEntry:
         )
 
 class Fstab:
-    """Classe pour manipuler le fichier /etc/fstab."""
+    """Class for manipulating the /etc/fstab file."""
     
     def __init__(self, fstab_path: str = "/etc/fstab"):
         """
-        Initialise le gestionnaire fstab.
+        Initialize the fstab manager.
         
         Args:
-            fstab_path: Chemin vers le fichier fstab (par défaut: /etc/fstab)
+            fstab_path: Path to the fstab file (default: /etc/fstab)
         """
         self.fstab_path = Path(fstab_path)
         self.entries: List[FstabEntry] = []
         self.load()
     
     def load(self) -> None:
-        """Charge les entrées du fichier fstab."""
+        """Load the entries from the fstab file."""
         self.entries = []
         
         if not self.fstab_path.exists():
-            raise FstabError(f"Le fichier {self.fstab_path} n'existe pas")
+            raise FstabError(f"The file {self.fstab_path} does not exist")
         
         try:
             with open(self.fstab_path, 'r', encoding='utf-8') as f:
                 for line in f:
                     line = line.strip()
                     
-                    # Ignorer les lignes vides et les commentaires
+                    # Ignore empty lines and comments
                     if not line or line.startswith('#'):
                         if line:
-                            # Conserver les commentaires
+                            # Keep comments
                             self.entries.append(FstabEntry("", "", "", "", 0, 0, line.lstrip('#').strip()))
                         continue
                     
-                    # Découper la ligne en champs
+                    # Split the line into fields
                     parts = re.split(r'\s+', line, maxsplit=5)
                     if len(parts) < 6:
-                        logger.warning("Ligne fstab mal formatée ignorée: %s", line)
+                        logger.warning("Malformed fstab line ignored: %s", line)
                         continue
                     
-                    # Extraire les champs
+                    # Extract the fields
                     filesystem = parts[0]
                     mount_point = parts[1]
                     fs_type = parts[2]
@@ -109,12 +109,12 @@ class Fstab:
                     
                     try:
                         dump = int(parts[4])
-                        pass_num = int(parts[5].split('#')[0].strip())  # Enlever les commentaires
+                        pass_num = int(parts[5].split('#')[0].strip())  # Remove comments
                     except (ValueError, IndexError):
-                        logger.warning("Valeurs numériques invalides dans la ligne: %s", line)
+                        logger.warning("Invalid numeric values in line: %s", line)
                         continue
                     
-                    # Extraire le commentaire s'il y en a un
+                    # Extract the comment if present
                     comment = ""
                     if '#' in line:
                         comment = line.split('#', 1)[1].strip()
@@ -130,34 +130,34 @@ class Fstab:
                     ))
                     
         except IOError as e:
-            raise FstabError(f"Impossible de lire le fichier {self.fstab_path}: {e}")
+            raise FstabError(f"Failed to read the file {self.fstab_path}: {e}")
     
     def save(self, backup: bool = True) -> None:
         """
-        Enregistre les modifications dans le fichier fstab.
+        Save the changes to the fstab file.
         
         Args:
-            backup: Si True, crée une sauvegarde du fichier avant modification
+            backup: If True, create a backup of the file before modification
         """
         if backup:
             backup_path = self.fstab_path.with_suffix(f".{self.fstab_path.suffix}.bak")
             try:
                 shutil.copy2(self.fstab_path, backup_path)
-                logger.info("Sauvegarde créée: %s", backup_path)
+                logger.info("Backup created: %s", backup_path)
             except IOError as e:
-                raise FstabError(f"Impossible de créer une sauvegarde: {e}")
+                raise FstabError(f"Failed to create a backup: {e}")
         
-        # Générer le contenu du fichier
+        # Generate the file content
         content = ""
         for entry in self.entries:
-            if not entry.filesystem:  # C'est un commentaire
+            if not entry.filesystem:  # It's a comment
                 content += f"#{entry.comment}\n"
             else:
                 content += f"{entry}\n"
         
-        # Écrire le fichier de manière sécurisée
+        # Write the file securely
         secure_file_write(self.fstab_path, content, 0o644)
-        logger.info("Fichier fstab mis à jour: %s", self.fstab_path)
+        logger.info("Fstab file updated: %s", self.fstab_path)
     
     def add_entry(
         self,
@@ -171,20 +171,20 @@ class Fstab:
         check_duplicate: bool = True
     ) -> bool:
         """
-        Ajoute une entrée au fichier fstab.
+        Add an entry to the fstab file.
         
         Args:
-            filesystem: Le système de fichiers ou la source
-            mount_point: Le point de montage
-            fs_type: Le type de système de fichiers
-            options: Options de montage (par défaut: "defaults")
-            dump: Option de sauvegarde (0 ou 1)
-            pass_num: Option de vérification au démarrage (0, 1, ou 2)
-            comment: Commentaire optionnel
-            check_duplicate: Si True, vérifie les doublons avant d'ajouter
+            filesystem: The filesystem or source
+            mount_point: The mount point
+            fs_type: The filesystem type
+            options: Mount options (default: "defaults")
+            dump: Backup option (0 or 1)
+            pass_num: Filesystem check order at boot (0, 1, or 2)
+            comment: Optional comment
+            check_duplicate: If True, check for duplicates before adding
             
         Returns:
-            bool: True si l'entrée a été ajoutée, False si elle existe déjà
+            bool: True if the entry was added, False if it already exists
         """
         new_entry = FstabEntry(
             filesystem=filesystem,
@@ -196,9 +196,9 @@ class Fstab:
             comment=comment
         )
         
-        # Vérifier les doublons
+        # Check for duplicates
         if check_duplicate and new_entry in self.entries:
-            logger.warning("Entrée fstab déjà existante: %s", new_entry)
+            logger.warning("Fstab entry already exists: %s", new_entry)
             return False
         
         self.entries.append(new_entry)
@@ -206,15 +206,15 @@ class Fstab:
     
     def remove_entry(self, filesystem: str, mount_point: str, fs_type: str) -> bool:
         """
-        Supprime une entrée du fichier fstab.
+        Remove an entry from the fstab file.
         
         Args:
-            filesystem: Le système de fichiers ou la source
-            mount_point: Le point de montage
-            fs_type: Le type de système de fichiers
+            filesystem: The filesystem or source
+            mount_point: The mount point
+            fs_type: The filesystem type
             
         Returns:
-            bool: True si l'entrée a été supprimée, False sinon
+            bool: True if the entry was removed, False otherwise
         """
         target = FstabEntry(filesystem, mount_point, fs_type, "")
         initial_count = len(self.entries)
@@ -223,32 +223,32 @@ class Fstab:
     
     def find_entries_by_mount_point(self, mount_point: str) -> List[FstabEntry]:
         """
-        Trouve toutes les entrées pour un point de montage donné.
+        Find all entries for a given mount point.
         
         Args:
-            mount_point: Chemin du point de montage
+            mount_point: Path to the mount point
             
         Returns:
-            Liste des entrées correspondantes
+            List of matching entries
         """
         mount_point = str(Path(mount_point).resolve())
         return [e for e in self.entries if e.mount_point == mount_point]
     
     def find_entries_by_filesystem(self, filesystem: str) -> List[FstabEntry]:
         """
-        Trouve toutes les entrées pour un système de fichiers donné.
+        Find all entries for a given filesystem.
         
         Args:
-            filesystem: Nom du système de fichiers ou source
+            filesystem: The filesystem or source to search for
             
         Returns:
-            Liste des entrées correspondantes
+            List of matching entries
         """
         return [e for e in self.entries if e.filesystem == filesystem]
     
     def get_network_shares(self) -> List[FstabEntry]:
         """
-        Récupère tous les partages réseau (NFS, CIFS, etc.).
+        Get all network shares (NFS, CIFS, etc.).
         
         Returns:
             Liste des entrées de partage réseau

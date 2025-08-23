@@ -34,13 +34,13 @@ echo "Build complete! The executable is in the 'dist' directory."
     return content
 
 def main():
-    """Fonction principale"""
+    """Main function"""
     try:
         with open('build.sh', 'w', encoding='utf-8') as f:
             f.write(generate_build_sh())
-        print("✅ Fichier build.sh généré avec succès!")
+        print("✅ build.sh file generated successfully!")
     except Exception as e:
-        print(f"❌ Erreur lors de la génération du fichier: {e}")
+        print(f"❌ Error generating file: {e}")
 
 if __name__ == "__main__":
     main()

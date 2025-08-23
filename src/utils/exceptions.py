@@ -7,21 +7,21 @@ class NetworkMounterError(Exception):
     pass
 
 class MountError(NetworkMounterError):
-    """Erreur lors du montage d'un partage réseau."""
+    """Error while mounting a network share."""
     pass
 
 class UnmountError(NetworkMounterError):
-    """Erreur lors du démontage d'un partage réseau."""
+    """Error while unmounting a network share."""
     pass
 
 class FstabError(NetworkMounterError):
-    """Erreur liée à la manipulation du fichier fstab."""
+    """Error related to fstab file manipulation."""
     pass
 
 class CredentialsError(NetworkMounterError):
-    """Erreur liée à la gestion des identifiants."""
+    """Error related to credentials management."""
     pass
 
 class ValidationError(NetworkMounterError):
-    """Erreur de validation des données d'entrée."""
+    """Input data validation error."""
     pass

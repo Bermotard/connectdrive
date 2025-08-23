@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Point d'entrée principal pour l'exécution du package.
+Main entry point for package execution.
 """
 import sys
 import os

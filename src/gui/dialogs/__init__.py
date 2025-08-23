@@ -1,1 +1,1 @@
-# Boîtes de dialogue de l'application
+# Application dialog boxes

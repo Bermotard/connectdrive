@@ -1,5 +1,5 @@
 """
-Validateurs pour les entrées utilisateur de l'application NetworkMounter.
+Validators for NetworkMounter application user inputs.
 """
 import re
 import ipaddress
@@ -9,50 +9,50 @@ from .exceptions import ValidationError
 
 def validate_hostname(hostname: str) -> bool:
     """
-    Valide un nom d'hôte ou une adresse IP.
+    Validates a hostname or IP address.
     
     Args:
-        hostname: Nom d'hôte ou adresse IP à valider
+        hostname: Hostname or IP address to validate
         
     Returns:
-        bool: True si valide, False sinon
+        bool: True if valid, False otherwise
     """
     if not hostname:
         return False
     
-    # Vérifier si c'est une adresse IP valide
+    # Check if it's a valid IP address
     try:
         ipaddress.ip_address(hostname)
         return True
     except ValueError:
         pass
     
-    # Vérifier si c'est un nom d'hôte valide
+    # Check if it's a valid hostname
     if len(hostname) > 255:
         return False
     
-    # Un nom d'hôte ne peut pas commencer ou finir par un point
+    # A hostname cannot start or end with a dot
     if hostname[-1] == "." or hostname[0] == ".":
         return False
     
-    # Vérifier chaque partie du nom d'hôte
+    # Check each part of the hostname
     allowed = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
     return all(allowed.match(x) for x in hostname.split("."))
 
 def validate_share_path(share_path: str) -> bool:
     """
-    Valide un chemin de partage réseau.
+    Validates a network share path.
     
     Args:
-        share_path: Chemin de partage à valider
+        share_path: Share path to validate
         
     Returns:
-        bool: True si valide, False sinon
+        bool: True if valid, False otherwise
     """
     if not share_path:
         return False
     
-    # Vérifier le format de base (doit commencer par / et ne pas contenir de caractères interdits)
+    # Check basic format (must start with / and not contain forbidden characters)
     if not re.match(r'^/[^\\:*?"<>|]*$', share_path):
         return False
     
@@ -60,60 +60,60 @@ def validate_share_path(share_path: str) -> bool:
 
 def validate_mount_point(path: Union[str, Path]) -> Tuple[bool, Optional[str]]:
     """
-    Valide un point de montage.
+    Validates a mount point.
     
     Args:
-        path: Chemin du point de montage à valider
+        path: Mount point path to validate
         
     Returns:
-        Tuple[bool, Optional[str]]: (valide, message_erreur)
+        Tuple[bool, Optional[str]]: (is_valid, error_message)
     """
     path = Path(path) if isinstance(path, str) else path
     
-    # Vérifier que le chemin est absolu
+    # Check that the path is absolute
     if not path.is_absolute():
-        return False, "Le chemin du point de montage doit être absolu"
+        return False, "Mount point path must be absolute"
     
-    # Vérifier que le répertoire parent existe
+    # Check that the parent directory exists
     if not path.parent.exists():
-        return False, f"Le répertoire parent {path.parent} n'existe pas"
+        return False, f"Parent directory {path.parent} does not exist"
     
-    # Vérifier que le chemin n'est pas déjà utilisé (si le répertoire existe déjà)
+    # Check that the path is not already in use (if directory exists)
     if path.exists():
         if not path.is_dir():
-            return False, f"Le chemin {path} existe mais n'est pas un répertoire"
+            return False, f"Path {path} exists but is not a directory"
         try:
             if any(path.iterdir()):
-                return False, f"Le répertoire {path} n'est pas vide"
+                return False, f"Directory {path} is not empty"
         except PermissionError:
-            return False, f"Permission refusée pour accéder à {path}"
+            return False, f"Permission denied when accessing {path}"
     
     return True, None
 
 def validate_credentials(username: str, password: str, domain: Optional[str] = None) -> bool:
     """
-    Valide des identifiants de connexion.
+    Validates login credentials.
     
     Args:
-        username: Nom d'utilisateur
-        password: Mot de passe
-        domain: Domaine (optionnel)
+        username: Username
+        password: Password
+        domain: Domain (optional)
         
     Returns:
-        bool: True si valide, False sinon
+        bool: True if valid, False otherwise
     """
     if not username or not password:
         return False
     
-    # Vérifier la longueur minimale du nom d'utilisateur
+    # Check minimum username length
     if len(username) < 1:
         return False
     
-    # Vérifier la longueur minimale du mot de passe
+    # Check minimum password length
     if len(password) < 1:
         return False
     
-    # Vérifier le format du domaine si spécifié
+    # Check the domain format if specified
     if domain and not re.match(r'^[a-zA-Z0-9.-]+$', domain):
         return False
     
@@ -121,12 +121,12 @@ def validate_credentials(username: str, password: str, domain: Optional[str] = N
 
 def validate_fs_type(fs_type: str) -> bool:
     """
-    Valide un type de système de fichiers.
+    Validates a filesystem type.
     
     Args:
-        fs_type: Type de système de fichiers à valider
+        fs_type: Filesystem type to validate
         
     Returns:
-        bool: True si valide, False sinon
+        bool: True if valid, False otherwise
     """
     return fs_type.lower() in ('cifs', 'nfs', 'nfs4')

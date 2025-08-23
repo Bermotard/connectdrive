@@ -1,1 +1,1 @@
-# Package GUI pour l'interface utilisateur
+# GUI package for the user interface
