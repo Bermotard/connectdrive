@@ -5,7 +5,7 @@ if [ -f "build.sh" ]; then
     echo "⚠️  The build.sh file already exists. It will be overwritten."
     read -p "Do you want to continue? (y/n) " -n 1 -r
     echo
-    if [[ ! $REPLY =~ ^[Oo]$ ]]; then
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo -e "\nCancelled."
         exit 1
     fi

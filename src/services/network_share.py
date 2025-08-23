@@ -17,15 +17,31 @@ logging.basicConfig(
     ]
 )
 
-from ..utils.system import (
-    ensure_directory,
+from src.utils.system import (
+    run_command,
     is_mounted,
-    mount_share as system_mount_share,
-    unmount_share as system_unmount_share,
+    create_mount_point,
+    remove_mount_point,
+    get_mount_info,
+    get_network_interfaces,
+    get_ip_address,
+    get_network_connections,
+    get_disk_usage,
+    get_mounted_shares,
+    get_available_shares,
+    get_share_permissions,
+    set_share_permissions,
+    get_share_owner,
+    set_share_owner,
+    get_share_size,
+    get_share_used_space,
+    get_share_available_space,
+    get_share_percent_used
 )
-from ..utils.credentials import CredentialsManager
-from ..utils.fstab import Fstab
-from ..utils.validators import validate_hostname, validate_share_path
+
+from src.utils.fstab import Fstab
+from src.utils.credentials import CredentialsManager
+from src.utils.validators import validate_hostname, validate_share_path
 
 logger = logging.getLogger(__name__)
 
@@ -268,7 +284,7 @@ class NetworkShareService:
         return unused_creds
         
     def _remove_from_fstab(self, mount_point: Union[str, Path]) -> Tuple[bool, str]:
-        """Supprime une entrée de fstab."""
+        """Remove an entry from fstab."""
         try:
             mount_point = str(Path(mount_point).resolve())
             entries = self.fstab.find_entries_by_mount_point(mount_point)

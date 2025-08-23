@@ -1,28 +1,28 @@
 #!/bin/bash
 
-# Activer l'environnement virtuel
+# Activate the virtual environment
 if [ -d "venv" ]; then
     source venv/bin/activate
 else
-    echo "⚠️  Le dossier venv n'existe pas. Création d'un nouvel environnement virtuel..."
+    echo "⚠️  The venv directory does not exist. Creating a new virtual environment..."
     python3 -m venv venv
     source venv/bin/activate
     pip install --upgrade pip
 fi
 
-# Installer les dépendances
+# Install dependencies
 pip install -r requirements.txt
 
-# Installer PyInstaller si nécessaire
+# Install PyInstaller if needed
 pip install pyinstaller
 
-# Nettoyer les builds précédents
+# Clean previous builds
 rm -rf build dist
 
-# Créer le dossier de sortie s'il n'existe pas
+# Create output directory if it doesn't exist
 mkdir -p dist
 
-# Créer l'exécutable avec la structure du projet
+# Create the executable with the project structure
 pyinstaller \
   --name NetworkMounter \
   --onefile \
@@ -47,9 +47,9 @@ pyinstaller \
 if [ $? -eq 0 ]; then
     # Make the executable... executable
     chmod +x dist/NetworkMounter
-    echo "✅ Build completed successfully! The executable is in the 'dist/' folder"
+    echo "✅ Build completed successfully! The executable is in the 'dist/' directory"
     echo "   You can run it with: ./dist/NetworkMounter"
 else
-    echo "❌ Error during compilation. Please check the error messages above."
+    echo "❌ Error during compilation. Check the error messages above."
     exit 1
 fi

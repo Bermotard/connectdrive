@@ -238,6 +238,349 @@ def mount_share(
         logger.error(error_msg)
         raise MountError(error_msg)
 
+def create_mount_point(path: Union[str, Path], mode: int = 0o755) -> Path:
+    """
+    Crée un répertoire de montage s'il n'existe pas.
+    
+    Args:
+        path: Chemin du point de montage
+        mode: Permissions à appliquer (par défaut: 0o755)
+        
+    Returns:
+        Path: Chemin du point de montage
+    """
+    path = Path(path).expanduser().resolve()
+    path.mkdir(mode=mode, parents=True, exist_ok=True)
+    return path
+
+def remove_mount_point(path: Union[str, Path], force: bool = False) -> None:
+    """
+    Supprime un répertoire de montage s'il est vide.
+    
+    Args:
+        path: Chemin du point de montage
+        force: Si True, supprime même si le répertoire n'est pas vide
+        
+    Raises:
+        OSError: Si le répertoire n'est pas vide et que force=False
+    """
+    path = Path(path).expanduser().resolve()
+    if path.exists():
+        if force:
+            shutil.rmtree(path)
+        else:
+            path.rmdir()
+
+def get_mount_info(mount_point: Union[str, Path]) -> Optional[dict]:
+    """
+    Get information about a mounted filesystem.
+    
+    Args:
+        mount_point: Path to the mount point
+        
+    Returns:
+        Dictionary with mount information or None if not mounted
+    """
+    mount_point = str(Path(mount_point).resolve())
+    try:
+        result = run_command(["findmnt", "-n", "-o", "SOURCE,TARGET,FSTYPE,OPTIONS", mount_point])
+        if result.returncode == 0 and result.stdout.strip():
+            parts = result.stdout.strip().split()
+            return {
+                'source': parts[0],
+                'target': parts[1],
+                'fstype': parts[2],
+                'options': parts[3] if len(parts) > 3 else ''
+            }
+    except subprocess.CalledProcessError:
+        pass
+    return None
+
+def get_network_interfaces() -> List[dict]:
+    """
+    Get list of network interfaces and their status.
+    
+    Returns:
+        List of dictionaries with interface information
+    """
+    try:
+        result = run_command(["ip", "-j", "addr", "show"])
+        import json
+        return json.loads(result.stdout)
+    except (subprocess.CalledProcessError, json.JSONDecodeError):
+        return []
+
+def get_ip_address(interface: str = "") -> str:
+    """
+    Get the IP address of a network interface.
+    
+    Args:
+        interface: Network interface name (empty for default)
+        
+    Returns:
+        IP address as string or empty string if not found
+    """
+    try:
+        cmd = ["ip", "-4", "-o", "addr", "show", interface] if interface else ["hostname", "-I"]
+        result = run_command(cmd)
+        if interface:
+            # Parse output like: 2: eth0    inet 192.168.1.2/24 ...
+            parts = result.stdout.strip().split()
+            if len(parts) >= 4:
+                return parts[3].split('/')[0]
+        else:
+            # hostname -I returns space-separated list of IPs
+            return result.stdout.strip().split()[0]
+    except (subprocess.CalledProcessError, IndexError):
+        pass
+    return ""
+
+def get_network_connections() -> List[dict]:
+    """
+    Get list of active network connections.
+    
+    Returns:
+        List of dictionaries with connection information
+    """
+    try:
+        result = run_command(["ss", "-tunp"])
+        connections = []
+        # Skip header line
+        for line in result.stdout.split('\n')[1:]:
+            if not line.strip():
+                continue
+            parts = line.split()
+            if len(parts) >= 6:
+                proto = parts[0]
+                state = parts[1]
+                local = parts[4]
+                peer = parts[5] if len(parts) > 5 else ""
+                connections.append({
+                    'protocol': proto,
+                    'state': state,
+                    'local': local,
+                    'peer': peer
+                })
+        return connections
+    except subprocess.CalledProcessError:
+        return []
+
+def get_disk_usage(path: Union[str, Path]) -> dict:
+    """
+    Get disk usage statistics for a path.
+    
+    Args:
+        path: Path to check
+        
+    Returns:
+        Dictionary with disk usage information
+    """
+    try:
+        result = run_command(["df", "-h", "--output=size,used,avail,pcent", str(path)])
+        lines = result.stdout.strip().split('\n')
+        if len(lines) > 1:
+            parts = lines[1].split()
+            if len(parts) >= 4:
+                return {
+                    'total': parts[0],
+                    'used': parts[1],
+                    'available': parts[2],
+                    'use_percent': parts[3].rstrip('%')
+                }
+    except subprocess.CalledProcessError:
+        pass
+    return {}
+
+def get_available_shares(server: str) -> List[dict]:
+    """
+    Get list of available shares from a server.
+    
+    Args:
+        server: Server address
+        
+    Returns:
+        List of dictionaries with share information
+    """
+    try:
+        result = run_command(["smbclient", "-L", f"//{server}", "-N"])
+        shares = []
+        for line in result.stdout.split('\n'):
+            line = line.strip()
+            if 'Disk' in line and '\\' in line and not line.startswith('\\'):
+                parts = line.split()
+                if parts:
+                    shares.append({
+                        'name': parts[0],
+                        'type': 'Disk',
+                        'description': ' '.join(parts[1:]) if len(parts) > 1 else ''
+                    })
+        return shares
+    except subprocess.CalledProcessError:
+        return []
+
+def get_share_permissions(share_path: str) -> dict:
+    """
+    Get permissions for a network share.
+    
+    Args:
+        share_path: Path to the share (e.g., //server/share)
+        
+    Returns:
+        Dictionary with permission information
+    """
+    try:
+        result = run_command(["smbcacls", share_path, "-N"])
+        return {
+            'path': share_path,
+            'permissions': result.stdout.strip()
+        }
+    except subprocess.CalledProcessError:
+        return {'path': share_path, 'permissions': 'unknown'}
+
+def set_share_permissions(share_path: str, permissions: str) -> bool:
+    """
+    Set permissions for a network share.
+    
+    Args:
+        share_path: Path to the share
+        permissions: Permissions string
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        run_command(["smbcacls", share_path, "-N", "-a", permissions])
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+def get_share_owner(share_path: str) -> dict:
+    """
+    Get owner information for a network share.
+    
+    Args:
+        share_path: Path to the share
+        
+    Returns:
+        Dictionary with owner information
+    """
+    try:
+        result = run_command(["smbcacls", share_path, "-N"])
+        # Parse owner from ACL output
+        owner = "unknown"
+        for line in result.stdout.split('\n'):
+            if 'OWNER:' in line:
+                owner = line.split('OWNER:')[1].strip()
+                break
+        return {
+            'path': share_path,
+            'owner': owner
+        }
+    except subprocess.CalledProcessError:
+        return {'path': share_path, 'owner': 'unknown'}
+
+def set_share_owner(share_path: str, owner: str) -> bool:
+    """
+    Set owner for a network share.
+    
+    Args:
+        share_path: Path to the share
+        owner: New owner
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        run_command(["smbcacls", share_path, "-N", "-O", owner])
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+def get_share_percent_used(share_path: str) -> float:
+    """
+    Get the percentage of used space for a network share.
+    
+    Args:
+        share_path: Path to the share (e.g., //server/share)
+        
+    Returns:
+        Float representing the percentage of used space (0-100)
+    """
+    try:
+        size_info = get_share_size(share_path)
+        if 'use_percent' in size_info and size_info['use_percent'] != 'unknown':
+            return float(size_info['use_percent'].rstrip('%'))
+    except (ValueError, KeyError):
+        pass
+    return 0.0
+
+def get_share_available_space(share_path: str) -> dict:
+    """
+    Get available space information for a network share.
+    
+    Args:
+        share_path: Path to the share (e.g., //server/share)
+        
+    Returns:
+        Dictionary with available space information
+    """
+    # For now, we'll just call get_share_size and return its result
+    # since it already provides available space information
+    return get_share_size(share_path)
+
+def get_share_used_space(share_path: str) -> dict:
+    """
+    Get used space information for a network share.
+    
+    Args:
+        share_path: Path to the share (e.g., //server/share)
+        
+    Returns:
+        Dictionary with used space information
+    """
+    # For now, we'll just call get_share_size and return its result
+    # since it already provides used space information
+    return get_share_size(share_path)
+
+def get_share_size(share_path: str) -> dict:
+    """
+    Get size information for a network share.
+    
+    Args:
+        share_path: Path to the share (e.g., //server/share)
+        
+    Returns:
+        Dictionary with size information (total, used, free, etc.)
+    """
+    try:
+        # First check if the share is mounted and get its mount point
+        mount_info = get_mount_info(share_path)
+        if mount_info and 'target' in mount_info:
+            # If it's mounted, use df to get size info
+            return get_disk_usage(mount_info['target'])
+            
+        # If not mounted, try to get size info directly (may require authentication)
+        result = run_command(["smbclient", share_path, "-N", "-c", "du"])
+        if result.returncode == 0:
+            # Parse smbclient du output which is in blocks (usually 1024 bytes per block)
+            lines = result.stdout.strip().split('\n')
+            if lines and 'blocks of size' in lines[-1]:
+                parts = lines[-1].split()
+                if len(parts) >= 7:
+                    blocks = int(parts[0].replace(',', ''))
+                    block_size = int(parts[3])
+                    total_bytes = blocks * block_size
+                    return {
+                        'total': f"{total_bytes / (1024*1024):.1f}M",
+                        'used': '0',
+                        'available': f"{total_bytes / (1024*1024):.1f}M",
+                        'use_percent': '0'
+                    }
+    except (subprocess.CalledProcessError, ValueError, IndexError) as e:
+        logger.warning(f"Could not get share size for {share_path}: {e}")
+    
+    return {'total': 'unknown', 'used': 'unknown', 'available': 'unknown', 'use_percent': '0'}
+
 def unmount_share(mount_point: Union[str, Path], force: bool = False) -> None:
     """
     Démonte un partage réseau.
