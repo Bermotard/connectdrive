@@ -110,10 +110,18 @@ class MountService:
         """
         try:
             # Create mount point if it doesn't exist
-            os.makedirs(mount_point, exist_ok=True)
+            try:
+                os.makedirs(mount_point, exist_ok=True)
+                # Set correct permissions (read/write/execute for owner, read/execute for group/others)
+                os.chmod(mount_point, 0o755)
+                logger.debug(f"Created mount point directory: {mount_point}")
+            except Exception as e:
+                error_msg = f"Failed to create mount point {mount_point}: {str(e)}"
+                logger.error(error_msg)
+                return False, error_msg
             
             # Prepare mount options
-            mount_options = []
+            mount_options = ["uid=1000", "gid=1000", "file_mode=0777", "dir_mode=0777"]
             
             # Add username and password if provided
             if username and password:
@@ -157,6 +165,10 @@ class MountService:
             
             # Add source and destination
             source = f"//{server}/{share}" if filesystem.lower() == "cifs" else f"{server}:{share}"
+            
+            # Add force option to handle existing mount points
+            cmd.append("-o")
+            cmd.append("nofail")
             cmd.extend([source, mount_point])
             
             # Execute the command with sudo
