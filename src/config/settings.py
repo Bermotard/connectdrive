@@ -16,7 +16,7 @@ MIN_WINDOW_SIZE = (700, 700)
 
 # Configuration des partages réseau
 DEFAULT_FILESYSTEM = "cifs"
-DEFAULT_OPTIONS = "rw,user"
+DEFAULT_OPTIONS = "rw,user,file_mode=0777,dir_mode=0777"
 
 # System paths
 FSTAB_PATH = "/etc/fstab"

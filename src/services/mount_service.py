@@ -4,6 +4,8 @@ Service to manage mounting and unmounting network shares.
 import subprocess
 import shlex
 import os
+import pwd
+import grp
 import logging
 import tempfile
 from pathlib import Path
@@ -121,7 +123,14 @@ class MountService:
                 return False, error_msg
             
             # Prepare mount options
-            mount_options = ["uid=1000", "gid=1000", "file_mode=0777", "dir_mode=0777"]
+            current_user = pwd.getpwuid(os.getuid())
+            current_group = grp.getgrgid(current_user.pw_gid)
+            mount_options = [
+                f"uid={current_user.pw_uid}",
+                f"gid={current_user.pw_gid}",
+                "file_mode=0777",
+                "dir_mode=0777"
+            ]
             
             # Add username and password if provided
             if username and password:

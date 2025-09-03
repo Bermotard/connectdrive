@@ -67,9 +67,29 @@ class FstabService:
             mount_point = Path(mount_point).resolve()
             if not mount_point.exists():
                 os.makedirs(mount_point, exist_ok=True)
+                # Set correct permissions (read/write/execute for owner, read/execute for group/others)
+                os.chmod(mount_point, 0o755)
             
             # Build the source
             source = f"//{server}/{share}" if filesystem == "cifs" else f"{server}:{share}"
+            
+            # Get current user and group
+            import pwd
+            import grp
+            current_user = pwd.getpwuid(os.getuid())
+            current_group = grp.getgrgid(current_user.pw_gid)
+            
+            # Prepare default options
+            default_options = [
+                f"uid={current_user.pw_uid}",
+                f"gid={current_user.pw_gid}",
+                "file_mode=0777",
+                "dir_mode=0777"
+            ]
+            
+            # Add user-provided options if any
+            if options:
+                default_options.extend(opt.strip() for opt in options.split(',') if opt.strip())
             
             # Handle authentication information
             if username or password or domain:
@@ -80,10 +100,13 @@ class FstabService:
                     server=server,
                     share=share
                 )
-                options = f"{options},credentials={creds_file}" if options else f"credentials={creds_file}"
+                default_options.append(f"credentials={creds_file}")
+            
+            # Join all options
+            options_str = ",".join(default_options)
             
             # Build the fstab line
-            fstab_line = f"{source} {mount_point} {filesystem} {options} {dump} {pass_num}\n"
+            fstab_line = f"{source} {mount_point} {filesystem} {options_str} {dump} {pass_num}\n"
             
             # Read the current content of fstab
             success, content = self.read_fstab()
