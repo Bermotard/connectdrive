@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Main entry point for the Network Drive Mounter application.
+Main entry point for the Network Drive Mounter application. V0.9.2
 """
 import sys
 import os
