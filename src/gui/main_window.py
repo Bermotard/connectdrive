@@ -2,8 +2,11 @@
 Main window for the Network Drive Mounter application.
 """
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog
 from typing import Dict, Optional
+import subprocess
+import tempfile
+import os
 
 from ..config import settings
 from .dialogs.credentials import CredentialsDialog
@@ -50,7 +53,12 @@ class MainWindow:
         # File Menu
         file_menu = tk.Menu(menubar, tearoff=0)
         file_menu.add_command(label="Mount Points", command=self._list_mounts)
-        file_menu.add_command(label="View fstab", command=self._show_fstab)
+        
+        # Fstab submenu
+        fstab_menu = tk.Menu(file_menu, tearoff=0)
+        fstab_menu.add_command(label="View", command=self._show_fstab)
+        fstab_menu.add_command(label="Edit", command=self._edit_fstab)
+        file_menu.add_cascade(label="fstab", menu=fstab_menu)
         
         # Credentials submenu
         creds_menu = tk.Menu(file_menu, tearoff=0)
@@ -192,7 +200,7 @@ class MainWindow:
         
         # Unmount options frame with more padding
         unmount_frame = ttk.LabelFrame(parent, text="Advanced Unmount Options", padding=10)
-        unmount_frame.pack(fill=tk.X, pady=10, padx=10, ipady=5)
+        unmount_frame.pack(fill=tk.X, pady=(0, 10), padx=10, ipady=5, before=main_btn_frame)  # Position above main buttons
         
         unmount_buttons = [
             ("Force Unmount", lambda: self._unmount_share(force=True)),
@@ -469,6 +477,38 @@ class MainWindow:
             error_msg = f"Error reading fstab: {str(e)}"
             messagebox.showerror("Error", error_msg)
             self._log(error_msg)
+    
+    def _edit_fstab(self) -> None:
+        """Open fstab in nano editor with sudo privileges in a new terminal window."""
+        try:
+            # Try to find a terminal emulator
+            terminal_emulators = ['x-terminal-emulator', 'gnome-terminal', 'konsole', 'xfce4-terminal', 'lxterminal', 'mate-terminal']
+            terminal = None
+            
+            for term in terminal_emulators:
+                if subprocess.run(['which', term], capture_output=True, text=True).returncode == 0:
+                    terminal = term
+                    break
+            
+            if not terminal:
+                messagebox.showerror("Error", "No terminal emulator found. Please install one (e.g., gnome-terminal, konsole, xfce4-terminal)")
+                return
+            
+            # Build the command based on the terminal emulator
+            if terminal == 'gnome-terminal':
+                cmd = [terminal, '--', 'sudo', '-e', 'nano', '/etc/fstab']
+            elif terminal == 'konsole':
+                cmd = [terminal, '-e', 'sudo nano /etc/fstab']
+            elif terminal == 'x-terminal-emulator':
+                cmd = [terminal, '-e', 'sudo nano /etc/fstab']
+            else:
+                cmd = [terminal, '-e', 'sudo nano /etc/fstab']
+            
+            # Execute the command
+            subprocess.Popen(cmd, start_new_session=True)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open editor: {str(e)}")
     
     def _manage_credentials(self):
         """Open the credentials management dialog."""
