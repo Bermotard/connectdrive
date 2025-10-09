@@ -391,29 +391,49 @@ def get_disk_usage(path: Union[str, Path]) -> dict:
         pass
     return {}
 
-def get_available_shares(server: str) -> List[dict]:
+def get_available_shares(server: str, username: Optional[str] = None, password: Optional[str] = None, domain: Optional[str] = None) -> List[dict]:
     """
-    Get list of available shares from a server.
+    Get list of available SMB shares from a server.
     
     Args:
         server: Server address
+        username: Optional username for authentication
+        password: Optional password for authentication
+        domain: Optional domain
         
     Returns:
         List of dictionaries with share information
+    
+    Note:
+        If credentials are provided, they are passed to smbclient for enumeration. Depending on configuration,
+        some servers require authentication for listing shares.
     """
     try:
-        result = run_command(["smbclient", "-L", f"//{server}", "-N"])
-        shares = []
+        cmd: List[str] = ["smbclient", "-L", f"//{server}"]
+        if username:
+            user = f"{domain}\\{username}" if domain else username
+            # Using user%password inline. Warning: this may appear in debug logs.
+            if password is not None:
+                user_field = f"{user}%{password}"
+            else:
+                user_field = user
+            cmd.extend(["-U", user_field])
+        else:
+            cmd.append("-N")
+        result = run_command(cmd)
+        shares: List[dict] = []
         for line in result.stdout.split('\n'):
             line = line.strip()
-            if 'Disk' in line and '\\' in line and not line.startswith('\\'):
-                parts = line.split()
-                if parts:
-                    shares.append({
-                        'name': parts[0],
-                        'type': 'Disk',
-                        'description': ' '.join(parts[1:]) if len(parts) > 1 else ''
-                    })
+            # smbclient output contains a table, filter rows that look like shares
+            if not line or line.startswith("Sharename") or line.startswith("Type") or line.startswith("——"):
+                continue
+            parts = line.split()
+            if len(parts) >= 2 and parts[1].lower() == 'disk':
+                shares.append({
+                    'name': parts[0],
+                    'type': 'Disk',
+                    'description': ' '.join(parts[2:]) if len(parts) > 2 else ''
+                })
         return shares
     except subprocess.CalledProcessError:
         return []
@@ -612,3 +632,23 @@ def unmount_share(mount_point: Union[str, Path], force: bool = False) -> None:
         error_msg = f"Échec du démontage de {mount_point}: {e.stderr}"
         logger.error(error_msg)
         raise UnmountError(error_msg)
+
+def open_network_browser() -> bool:
+    """
+    Open the desktop's file manager to the Network (SMB) view.
+    Tries xdg-open and common file managers. Returns True if a command was started.
+    """
+    commands: List[List[str]] = [
+        ["xdg-open", "network://"],
+        ["nemo", "network://"],
+        ["nautilus", "network://"],
+        ["dolphin", "network:/"],
+        ["thunar", "network://"],
+    ]
+    for cmd in commands:
+        try:
+            run_command(cmd, check=False, capture_output=False)
+            return True
+        except Exception:
+            continue
+    return False
