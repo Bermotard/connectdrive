@@ -29,7 +29,7 @@ Network share mounting tool with a graphical interface for Linux.
 
 2. Create a virtual environment (recommended):
    ```bash
-   python -m venv venv
+   python3 -m venv venv
    source venv/bin/activate  # On Linux/Mac
    # OR
    # .\venv\Scripts\activate  # On Windows

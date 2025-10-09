@@ -6,11 +6,14 @@ from tkinter import ttk, messagebox
 from typing import Dict, Optional
 
 from ..config import settings
+import shutil
+import socket
 from .dialogs.credentials import CredentialsDialog
 from .dialogs.purge_credentials_dialog import PurgeCredentialsDialog
 from ..services.mount_service import MountService
 from ..services.fstab_service import FstabService
 from ..utils.logger import setup_logger
+from ..utils.system import run_command
 
 class MainWindow:
     """Main user interface class."""
@@ -50,7 +53,11 @@ class MainWindow:
         # File Menu
         file_menu = tk.Menu(menubar, tearoff=0)
         file_menu.add_command(label="Mount Points", command=self._list_mounts)
-        file_menu.add_command(label="View fstab", command=self._show_fstab)
+        # fstab submenu
+        fstab_menu = tk.Menu(file_menu, tearoff=0)
+        fstab_menu.add_command(label="View", command=self._show_fstab)
+        fstab_menu.add_command(label="Edit…", command=self._edit_fstab)
+        file_menu.add_cascade(label="fstab", menu=fstab_menu)
         
         # Credentials submenu
         creds_menu = tk.Menu(file_menu, tearoff=0)
@@ -93,6 +100,53 @@ class MainWindow:
         widget.bind('<Enter>', enter)
         widget.bind('<Leave>', leave)
     
+    def _open_server_in_explorer(self) -> None:
+        """Open the system file explorer for SMB/network browsing.
+        
+        - If a server is provided, open smb://<server>
+        - If empty, open network:// (Other Locations)
+        Tries multiple commands to maximize compatibility.
+        """
+        server = self.vars['server'].get().strip()
+        url = f"smb://{server}" if server else "network://"
+        commands = [
+            ["xdg-open", url],
+            ["gio", "open", url],
+            ["nautilus", url],
+            ["nemo", url],
+            ["dolphin", url],
+            ["thunar", url],
+        ]
+        last_error = None
+        for cmd in commands:
+            try:
+                result = run_command(cmd, check=False, capture_output=False)
+                if result.returncode == 0:
+                    return
+            except Exception as e:
+                last_error = e
+        # If we reach here, all attempts failed
+        if server:
+            messagebox.showerror(
+                "Error",
+                (
+                    f"Unable to open file explorer for {url}.\n"
+                    f"Make sure a file manager with SMB support is installed (e.g., gvfs-smb).\n"
+                    f"Details: {last_error if last_error else 'no compatible opener found'}"
+                ),
+            )
+        else:
+            messagebox.showerror(
+                "Error",
+                (
+                    "Unable to open network browser (network://).\n"
+                    "Install or configure a file manager supporting network browsing.\n"
+                    f"Details: {last_error if last_error else 'no compatible opener found'}"
+                ),
+            )
+
+    # Removed browsing/picker flows per user request
+    
     def _setup_ui(self) -> None:
         """Configure the user interface."""
         # Button styles
@@ -106,11 +160,11 @@ class MainWindow:
         # Connection form
         self._setup_connection_form(main_frame)
         
-        # Log area
-        self._setup_log_area(main_frame)
-        
-        # Action buttons
+        # Action buttons (place before the log area so they remain visible)
         self._setup_action_buttons(main_frame)
+        
+        # Log area (expand to take remaining space)
+        self._setup_log_area(main_frame)
     
     def _setup_connection_form(self, parent: ttk.Widget) -> None:
         """Configure the connection form."""
@@ -142,6 +196,8 @@ class MainWindow:
                 show="*" if is_password else ""
             )
             entry.grid(row=i, column=1, sticky=tk.EW, padx=5, pady=2)
+            
+            # No extra button next to Server (reverted)
         
         # Grid configuration
         form_frame.columnconfigure(1, weight=1)
@@ -228,6 +284,51 @@ class MainWindow:
         self.root.update()
     
     # Action methods
+    def _resolve_server(self, server: str) -> str:
+        """Resolve a server name to an IP, trying DNS then nmblookup, then .local.
+        Returns the resolved IP/hostname or the original value if not resolved.
+        """
+        s = server.strip()
+        if not s:
+            return s
+        # If already an IPv4 literal, keep it
+        try:
+            socket.inet_aton(s)
+            return s
+        except OSError:
+            pass
+        # Try DNS resolution
+        try:
+            ip = socket.gethostbyname(s)
+            if ip:
+                self._log(f"Resolved server '{s}' via DNS to {ip}")
+                return ip
+        except Exception:
+            pass
+        # Try NetBIOS via nmblookup if available
+        if shutil.which('nmblookup'):
+            try:
+                res = run_command(["nmblookup", s], check=False)
+                out = (res.stdout or "") if res else ""
+                # Typical line: "192.168.1.22 NAS_BGT<00> *"
+                for line in out.splitlines():
+                    parts = line.split()
+                    if parts and parts[0].count('.') == 3:
+                        self._log(f"Resolved server '{s}' via nmblookup to {parts[0]}")
+                        return parts[0]
+            except Exception:
+                pass
+        # Try mDNS .local
+        if not s.endswith('.local'):
+            try:
+                ip = socket.gethostbyname(f"{s}.local")
+                if ip:
+                    self._log(f"Resolved server '{s}.local' via mDNS to {ip}")
+                    return ip
+            except Exception:
+                pass
+        # Give up
+        return s
     def _mount_share(self) -> None:
         """Mount the network share."""
         try:
@@ -246,11 +347,16 @@ class MainWindow:
                 messagebox.showerror("Error", "Please fill in all required fields (server, share, mount point)")
                 return
             
-            self._log(f"Attempting to mount {server}/{share} on {mount_point}...")
+            # Resolve server name if needed
+            resolved = self._resolve_server(server)
+            if resolved != server:
+                self._log(f"Using resolved server '{resolved}' instead of '{server}'")
+            
+            self._log(f"Attempting to mount {resolved}/{share} on {mount_point}...")
             
             # Call mount service
             success, message = self.mount_service.mount_share(
-                server=server,
+                server=resolved,
                 share=share,
                 mount_point=mount_point,
                 username=username or None,
@@ -267,11 +373,11 @@ class MainWindow:
             else:
                 self._log(f"Failed: {message}")
                 messagebox.showerror("Error", f"Mount failed: {message}")
-            
         except Exception as e:
             error_msg = f"Error during mount: {str(e)}"
             self._log(error_msg)
             messagebox.showerror("Error", error_msg)
+            return
     
     def _unmount_share(self, force: bool = False, lazy: bool = False) -> None:
         """
@@ -338,6 +444,36 @@ class MainWindow:
             error_msg = f"Error during unmount: {str(e)}"
             self._log(error_msg)
             messagebox.showerror("Error", error_msg)
+    
+    def _edit_fstab(self) -> None:
+        """Open /etc/fstab in nano using sudo inside a terminal emulator.
+        Picks the first available terminal using shutil.which and stops after launching it.
+        """
+        fstab_path = str(getattr(self.fstab_service, 'fstab_path', '/etc/fstab'))
+        # (terminal_executable, args)
+        candidates = [
+            ("x-terminal-emulator", ["-e", "sudo", "nano", fstab_path]),
+            ("gnome-terminal", ["--", "sudo", "nano", fstab_path]),
+            ("mate-terminal", ["--", "sudo", "nano", fstab_path]),
+            ("xfce4-terminal", ["--command", f"sudo nano {fstab_path}"]),
+            ("konsole", ["-e", "sudo", "nano", fstab_path]),
+            ("xterm", ["-e", "sudo", "nano", fstab_path]),
+        ]
+        for exe, args in candidates:
+            if shutil.which(exe):
+                cmd = [exe] + args
+                try:
+                    run_command(cmd, check=False, capture_output=False)
+                    self._log(f"Opening fstab editor with: {' '.join(cmd)}")
+                    return
+                except Exception as e:
+                    # Try next available terminal if this one fails to start
+                    continue
+        messagebox.showerror(
+            "fstab",
+            "Impossible d'ouvrir un terminal pour éditer fstab avec nano.\n"
+            "Installez un émulateur de terminal (gnome-terminal, xfce4-terminal, etc.) puis réessayez.",
+        )
     
     def _add_to_fstab(self) -> None:
         """Add entry to fstab."""

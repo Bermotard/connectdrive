@@ -17,7 +17,8 @@ class SudoPasswordDialog(tk.Toplevel):
         """
         super().__init__(parent)
         self.title(title)
-        self.geometry("400x150")
+        # Larger, clearer default size
+        self.geometry("520x220")
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
@@ -42,24 +43,30 @@ class SudoPasswordDialog(tk.Toplevel):
         main_frame.pack(fill=tk.BOTH, expand=True)
         
         # Information message
-        message = "This operation requires administrative privileges.\nPlease enter your password:"
-        ttk.Label(
-            main_frame, 
+        message = (
+            "This operation requires administrative privileges.\n"
+            "Please enter your password:"
+        )
+        msg_lbl = ttk.Label(
+            main_frame,
             text=message,
-            justify=tk.CENTER
-        ).pack(pady=(0, 10))
+            justify=tk.LEFT,
+            anchor=tk.W,
+            wraplength=480,  # keep text within dialog width
+        )
+        msg_lbl.pack(fill=tk.X, pady=(0, 12))
         
         # Password field
         password_frame = ttk.Frame(main_frame)
         password_frame.pack(fill=tk.X, pady=5)
         
-        ttk.Label(password_frame, text="Password:").pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Label(password_frame, text="Password:").pack(side=tk.LEFT, padx=(0, 8))
         
         self.password_entry = ttk.Entry(
             password_frame, 
             textvariable=self.password, 
             show="•",
-            width=30
+            width=42
         )
         self.password_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
@@ -82,6 +89,7 @@ class SudoPasswordDialog(tk.Toplevel):
         
         # Event bindings
         self.password_entry.bind("<Return>", lambda e: self._on_ok())
+        self.bind("<Escape>", lambda e: self._on_cancel())
         self.protocol("WM_DELETE_WINDOW", self._on_cancel)
     
     def _center_window(self) -> None:
