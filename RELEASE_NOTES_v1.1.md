@@ -27,16 +27,6 @@ Date: 2025-10-09
 - Ensure at least one terminal emulator is installed to use `fstab > Edit…`.
 - Optional: install `samba` tools to enable `nmblookup` for NetBIOS name resolution (`sudo apt install samba` or `samba-common-bin`).
 
-## Packaging (installable 1.1.0)
-- New `build_deb.sh`: builds an installable Debian/Ubuntu package
-  (`dist/connectdrive_1.1.0-1_all.deb`) with an application menu entry and icon.
-- Fixed `setup.py`: `pip install .` now correctly installs the `src` package and
-  the `connectdrive` command.
-- Fixes: mount options are now really applied, logging no longer crashes the app
-  when logs are inaccessible, removed the debug file written to `$HOME` on every
-  launch.
-- Unit tests updated to the current API and green (20/20).
-
 ## Known limitations
 - If no terminal emulator is installed, `fstab > Edit…` shows an error.
 - Name resolution depends on local network services; specifying the NAS IP remains the most reliable.
