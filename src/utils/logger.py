@@ -31,25 +31,32 @@ def setup_logger(name: str = "network_mounter", log_level: int = logging.INFO) -
     # Créer le gestionnaire de console
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
-    
+
     # Créer le répertoire de logs s'il n'existe pas
     log_dir = Path.home() / ".network_mounter" / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Créer le gestionnaire de fichier rotatif
-    log_file = log_dir / "network_mounter.log"
-    file_handler = logging.handlers.RotatingFileHandler(
-        log_file,
-        maxBytes=5*1024*1024,  # 5 Mo
-        backupCount=3,
-        encoding='utf-8'
-    )
-    file_handler.setFormatter(formatter)
-    
-    # Ajouter les gestionnaires au logger
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        # Créer le gestionnaire de fichier rotatif
+        log_file = log_dir / "network_mounter.log"
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_file,
+            maxBytes=5*1024*1024,  # 5 Mo
+            backupCount=3,
+            encoding='utf-8'
+        )
+        file_handler.setFormatter(formatter)
+
+        # Ajouter les gestionnaires au logger
+        logger.addHandler(file_handler)
+    except OSError as e:
+        # Ne jamais empêcher l'application de démarrer à cause de la journalisation
+        logger.warning(
+            "Impossible de créer le fichier de log (%s) — journalisation console uniquement",
+            e,
+        )
     logger.addHandler(console_handler)
-    logger.addHandler(file_handler)
-    
+
     return logger
 
 def get_logger(name: Optional[str] = None) -> logging.Logger:

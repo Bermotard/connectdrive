@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=ConnectDrive
+GenericName=Network Share Mounter
+Comment=Monter et gérer des partages réseau (CIFS/NFS)
+Exec=connectdrive
+Icon=connectdrive
+Terminal=false
+Categories=Network;Utility;
+Keywords=network;mount;cifs;nfs;samba;share;
+StartupNotify=true

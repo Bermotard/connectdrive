@@ -15,6 +15,7 @@ from ..config import settings
 from ..utils.credentials import CredentialsManager
 from ..utils.exceptions import CredentialsError, MountError
 from ..gui.dialogs.sudo_password_dialog import SudoPasswordDialog
+from .network_share import NetworkShareService
 import tkinter as tk
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,6 @@ class MountService:
     
     def __init__(self):
         """Initialize the mount service with the credentials manager."""
-        from .network_share import NetworkShareService
         self.credentials_manager = CredentialsManager()
         self.active_credentials = {}  # To keep track of active credential files
         self.network_share_service = NetworkShareService()
@@ -164,6 +164,9 @@ class MountService:
                     "_netdev"    # Share requires network
                 ]
                 mount_options.append(",".join(default_opts))
+            elif options:
+                # Apply user-provided options
+                mount_options.append(options)
             
             # Build the mount command
             cmd = ["mount", "-t", filesystem]

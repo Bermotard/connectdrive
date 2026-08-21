@@ -12,21 +12,22 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/bermotard/connectdrive",
-    packages=find_packages(where="src"),
-    package_dir={"": "src"},
+    packages=find_packages(include=["src", "src.*"]),
     include_package_data=True,
     install_requires=[
         "python-dotenv>=0.19.0",
     ],
     entry_points={
         "console_scripts": [
-            "connectdrive=main:main",
+            "connectdrive=src.main:main",
         ],
     },
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: POSIX :: Linux",
+        "Environment :: X11 Applications",
+        "Framework :: Tk",
     ],
     python_requires=">=3.8",
 )

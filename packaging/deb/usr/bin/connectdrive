@@ -1,0 +1,4 @@
+#!/bin/sh
+# Lanceur ConnectDrive (paquet Debian)
+# Le code applicatif est installé dans /usr/share/connectdrive
+PYTHONPATH=/usr/share/connectdrive exec /usr/bin/python3 -m src "$@"

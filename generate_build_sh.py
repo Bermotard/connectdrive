@@ -8,23 +8,30 @@ def generate_build_sh():
     content = '''#!/bin/bash
 
 # Activate virtual environment
-source venv/bin/activate
+if [ -d "venv" ]; then
+    source venv/bin/activate
+else
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install --upgrade pip
+fi
 
 # Install required packages
 pip install -r requirements.txt
+pip install pyinstaller
 
 # Clean previous builds
 rm -rf build dist
 
 # Create the executable
-pyinstaller \
-  --name NetworkMounter \
-  --onefile \
-  --windowed \
-  --clean \
-  --noconfirm \
-  --add-data "version.txt:." \
-  network_mounter.py
+# (Tkinter is detected automatically by PyInstaller; no hidden imports needed)
+pyinstaller \\
+  --name NetworkMounter \\
+  --onefile \\
+  --windowed \\
+  --clean \\
+  --noconfirm \\
+  src/__main__.py
 
 # Make the executable executable
 chmod +x dist/NetworkMounter

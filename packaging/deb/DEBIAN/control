@@ -1,0 +1,14 @@
+Package: connectdrive
+Version: 1.1.0-1
+Section: net
+Priority: optional
+Architecture: all
+Depends: python3 (>= 3.8), python3-tk, python3-dotenv, cifs-utils, nfs-common
+Recommends: nano, samba-common-bin
+Maintainer: Bernard Gosset <bgosset83@gmail.com>
+Homepage: https://github.com/bermotard/connectdrive
+Description: Outil de montage de partages réseau avec interface graphique
+ ConnectDrive est un outil graphique pour Linux permettant de monter et
+ démonter des partages réseau (CIFS/NFS), de gérer les points de montage
+ et les options, de stocker les identifiants de manière sécurisée et
+ d'ajouter des montages permanents dans /etc/fstab.

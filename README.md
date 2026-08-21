@@ -40,6 +40,24 @@ Network share mounting tool with a graphical interface for Linux.
    pip install -r requirements.txt
    ```
 
+### Debian/Ubuntu package (.deb) — recommended for Linux Mint / Ubuntu / Debian
+
+Build an installable `.deb` package and install it with `apt`:
+
+```bash
+# Build the package
+./build_deb.sh
+
+# Install it (dependencies are resolved automatically)
+sudo apt install ./dist/connectdrive_1.1.0-1_all.deb
+```
+
+The package installs ConnectDrive in the applications menu, adds the `connectdrive`
+command, and declares the required system dependencies (`python3-tk`, `cifs-utils`,
+`nfs-common`, `python3-dotenv`).
+
+To uninstall: `sudo apt remove connectdrive`
+
 ## Usage
 
 ### Development mode
@@ -107,8 +125,6 @@ Contributions are welcome! Feel free to open an issue or submit a pull request.
 ## Support
 
 If you encounter any issues or have questions, please open an issue on GitHub.
-   ./NetworkMounter
-   ```
 
 ## Development
 

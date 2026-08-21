@@ -4,12 +4,15 @@ Service for managing operations related to the fstab file.
 import subprocess
 import shlex
 import os
+import logging
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 
 import tkinter as tk
 from ..config import settings
 from .mount_service import MountService
+
+logger = logging.getLogger(__name__)
 
 class FstabService:
     """Service for managing fstab-related operations."""

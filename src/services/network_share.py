@@ -2,20 +2,8 @@
 Service for managing network share operations.
 """
 import logging
-import os
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
-
-# Set up file logging
-log_file = os.path.expanduser('~/network_mounter_debug.log')
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(log_file, mode='w'),
-        logging.StreamHandler()
-    ]
-)
 
 from src.utils.system import (
     run_command,
