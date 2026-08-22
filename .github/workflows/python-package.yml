@@ -16,10 +16,10 @@ jobs:
         python-version: ["3.8", "3.9", "3.10"]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     
@@ -42,7 +42,9 @@ jobs:
         fail_ci_if_error: false
     
     - name: Run integration tests
-      if: matrix.python-version == '3.10'  # Exécuter uniquement sur une version de Python
+      # Le dossier tests/integration n'existe pas encore : on n'exécute
+      # cette étape que lorsqu'il contient des tests.
+      if: matrix.python-version == '3.10' && hashFiles('tests/integration/**') != ''
       run: |
         python -m pytest tests/integration/ -v -m "integration"
     

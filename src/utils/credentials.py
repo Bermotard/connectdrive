@@ -146,9 +146,12 @@ class CredentialsManager:
             bool: True si la suppression a réussi, False sinon
         """
         file_path = Path(file_path).expanduser().resolve()
-        
-        # Vérifier que le fichier est bien dans le répertoire des identifiants
-        if not file_path.is_relative_to(self.credentials_dir):
+
+        # Vérifier que le fichier est bien dans le répertoire des identifiants.
+        # Évite is_relative_to() (disponible seulement à partir de Python 3.9)
+        try:
+            file_path.relative_to(self.credentials_dir)
+        except ValueError:
             logger.warning("Tentative de suppression d'un fichier en dehors du répertoire des identifiants: %s", file_path)
             return False
         

@@ -1,11 +1,14 @@
 """
 Dialog for managing and purging unused credentials.
 """
+import logging
 import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Dict, List, Optional, Callable
 from pathlib import Path
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 class PurgeCredentialsDialog:
     """Dialog for displaying and purging unused credentials."""
